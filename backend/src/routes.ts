@@ -2,6 +2,11 @@ import express from 'express';
 import { askNexusAiBot } from '@/ai/flows/ask-nexus-ai-bot';
 import { uploadExcelForAnalysis } from '@/ai/flows/upload-excel-for-analysis';
 import { getMusicRecommendation } from '@/ai/flows/get-music-recommendation';
+import * as userController from './controllers/userController';
+import * as channelController from './controllers/channelController';
+import * as messageController from './controllers/messageController';
+
+
 
 export const router = express.Router();
 
@@ -49,3 +54,17 @@ router.post('/music/recommend', async (req, res) => {
         });
     }
 });
+
+// User routes
+router.get('/users', userController.getUsers);
+router.post('/users', userController.createUser);
+
+// Channel routes
+router.get('/channels', channelController.getChannels);
+router.post('/channels', channelController.createChannel);
+
+// Message routes
+router.get('/messages', messageController.getMessages);
+router.post('/messages', messageController.createMessage);
+
+
