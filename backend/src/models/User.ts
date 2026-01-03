@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     avatar: { type: String },
     status: { type: String, default: 'online' },
+    channels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Channel' }],
 }, { timestamps: true });
 
 // Hash password before saving

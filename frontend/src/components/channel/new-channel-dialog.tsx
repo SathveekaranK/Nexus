@@ -14,6 +14,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+import { useDispatch } from 'react-redux';
+import { createChannel } from '@/services/channel/channelSlice';
+import { AppDispatch } from '@/store/store';
+
 interface NewChannelDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
@@ -22,9 +26,14 @@ interface NewChannelDialogProps {
 
 export default function NewChannelDialog({ isOpen, onOpenChange, onSave }: NewChannelDialogProps) {
     const [name, setName] = useState('');
+    const dispatch = useDispatch<AppDispatch>();
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (name) {
+            // Dispatch create action
+            await dispatch(createChannel({ name, type: 'channel' }));
+
+            // onSave might be used for UI closing or extra logic, keep it or just close
             onSave(name);
             setName('');
             onOpenChange(false);
@@ -45,10 +54,10 @@ export default function NewChannelDialog({ isOpen, onOpenChange, onSave }: NewCh
                         <Label htmlFor="name" className="text-right">
                             Name
                         </Label>
-                        <Input 
-                            id="name" 
-                            value={name} 
-                            onChange={(e) => setName(e.target.value)} 
+                        <Input
+                            id="name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
                             className="col-span-3"
                             placeholder="# e.g. project-gamma"
                         />

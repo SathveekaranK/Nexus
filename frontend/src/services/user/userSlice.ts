@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '@/components/api/axios';
 import { User } from '@/lib/types';
 
-interface UserState {
+export interface UserState {
     users: User[];
     isLoading: boolean;
     error: string | null;

@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import ChatView from '@/components/chat/chat-view';
-import { CHANNELS, MESSAGES, USERS } from '@/lib/data';
-import { Channel, Message, User } from '@/lib/types';
+import { Channel, User } from '@/lib/types';
 import { useParams } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '@/store/store';
+import { fetchMessages, sendMessage } from '@/services/message/messageSlice';
 
 interface ChannelPageProps {
     currentUser: User;
@@ -10,40 +12,48 @@ interface ChannelPageProps {
 
 export default function ChannelPage({ currentUser }: ChannelPageProps) {
     const { channelId } = useParams<{ channelId: string }>();
-    const [channel, setChannel] = useState<Channel | null>(null);
-    const [messages, setMessages] = useState<Message[]>([]);
-    const users = USERS;
+    const dispatch = useDispatch<AppDispatch>();
+
+    // Select data from Redux
+    const { channels } = useSelector((state: RootState) => state.channels);
+    const { messages } = useSelector((state: RootState) => state.messages);
+    const { users } = useSelector((state: RootState) => state.users);
+
+    const activeChannel = channels.find(c => c.id === channelId);
 
     useEffect(() => {
-        if (!channelId) return;
-
-        const channelData = CHANNELS.find(c => c.id === channelId);
-        if (channelData) {
-            setChannel(channelData);
-            const channelMessages = MESSAGES.filter(m => m.channelId === channelId);
-            setMessages(channelMessages);
+        if (channelId) {
+            dispatch(fetchMessages({ channelId }));
         }
-    }, [channelId]);
+    }, [channelId, dispatch]);
+
+    const handleSendMessage = (content: string) => {
+        if (channelId) {
+            dispatch(sendMessage({ channelId, content }));
+        }
+    };
 
     const handleUpdateChannel = (updatedChannel: Channel) => {
-        setChannel(updatedChannel);
+        // Optimistic update or specialized thunk if we implement channel editing
+        console.log("Update channel not implemented", updatedChannel);
     };
 
     if (!channelId) {
         return <div className="flex-1 flex items-center justify-center text-muted-foreground">Channel ID missing.</div>;
     }
 
-    if (!channel) {
-        return <div className="flex-1 flex items-center justify-center text-muted-foreground">Channel not found.</div>;
+    if (!activeChannel) {
+        return <div className="flex-1 flex items-center justify-center text-muted-foreground">Channel not found in your list.</div>;
     }
 
     return (
         <ChatView
-            activeChannel={channel}
+            activeChannel={activeChannel}
             initialMessages={messages}
             users={users}
             currentUser={currentUser}
             onUpdateChannel={handleUpdateChannel}
+            onSendMessage={handleSendMessage}
         />
     );
 }

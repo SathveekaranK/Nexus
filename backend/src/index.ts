@@ -9,6 +9,8 @@ import swaggerSpec from './swagger';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import messageRoutes from './routes/message.routes';
+import channelRoutes from './routes/channel.routes';
+import { authMiddleware } from './middleware/auth.middleware';
 
 dotenv.config();
 
@@ -23,8 +25,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // API Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/messages', messageRoutes);
+app.use('/api/users', authMiddleware, userRoutes); // Protect users
+app.use('/api/messages', authMiddleware, messageRoutes); // Protect messages
+app.use('/api/channels', authMiddleware, channelRoutes); // Protect channels
 
 // Start Server
 connectDB().then(() => {

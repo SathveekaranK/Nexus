@@ -2,13 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "@/components/layout/main-layout";
 import { MessageSquare, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchMe } from "@/services/auth/authSlice";
 import { fetchUsers } from "@/services/user/userSlice";
+import { fetchChannels } from "@/services/channel/channelSlice";
 import { AppDispatch, RootState } from "@/store/store";
-import api from "@/components/api/axios";
-import { Channel, User } from "@/lib/types";
+// Types inferred from Redux state
 
 import ChannelPage from "@/pages/channel";
 import DmPage from "@/pages/dm";
@@ -34,7 +34,7 @@ export default function App() {
     const dispatch = useDispatch<AppDispatch>();
     const { user: currentUser, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
     const { users } = useSelector((state: RootState) => state.users);
-    const [channels, setChannels] = useState<Channel[]>([]);
+    const { channels } = useSelector((state: RootState) => state.channels);
 
     useEffect(() => {
         dispatch(fetchMe());
@@ -43,16 +43,7 @@ export default function App() {
     useEffect(() => {
         if (currentUser) {
             dispatch(fetchUsers());
-            // Fetch supplemental data (Channels)
-            const fetchData = async () => {
-                try {
-                    const channelsRes: any = await api.get('/channels').catch(() => ({ data: [] }));
-                    setChannels(channelsRes.data || []);
-                } catch (e) {
-                    console.warn("Could not fetch extra data", e);
-                }
-            };
-            fetchData();
+            dispatch(fetchChannels());
         }
     }, [currentUser, dispatch]);
 

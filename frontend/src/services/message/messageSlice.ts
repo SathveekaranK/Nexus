@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '@/components/api/axios';
 import { Message } from '@/lib/types';
 
-interface MessageState {
+export interface MessageState {
     messages: Message[];
     isLoading: boolean;
     error: string | null;
@@ -16,9 +16,14 @@ const initialState: MessageState = {
 
 export const fetchMessages = createAsyncThunk(
     'messages/fetchMessages',
-    async (userId: string, { rejectWithValue }) => {
+    async (params: { userId?: string; channelId?: string }, { rejectWithValue }) => {
         try {
-            const response: any = await api.get(`/messages?userId=${userId}`);
+            const { userId, channelId } = params;
+            let url = '/messages?';
+            if (channelId) url += `channelId=${channelId}`;
+            else if (userId) url += `userId=${userId}`;
+
+            const response: any = await api.get(url);
             // Backend returns { success: true, data: [...] }
             // Interceptor returns response.data which IS { success: true, data: [...] }
             return response.data;
@@ -30,7 +35,7 @@ export const fetchMessages = createAsyncThunk(
 
 export const sendMessage = createAsyncThunk(
     'messages/sendMessage',
-    async (data: { recipientId: string; content: string }, { rejectWithValue }) => {
+    async (data: { recipientId?: string; channelId?: string; content: string }, { rejectWithValue }) => {
         try {
             const response: any = await api.post('/messages', data);
             // Returns { success: true, data: message }

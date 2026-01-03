@@ -1,9 +1,15 @@
 import { Request, Response } from 'express';
 import { User } from '../models/User';
 import jwt from 'jsonwebtoken';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth.middleware';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+    console.warn('WARNING: JWT_SECRET is not defined in environment variables. Using a temporary secret for development.');
+}
+
+const FINAL_JWT_SECRET = JWT_SECRET || 'dev-fallback-secret-dont-use-in-prod';
 
 // Register
 export const register = async (req: Request, res: Response) => {
@@ -18,7 +24,7 @@ export const register = async (req: Request, res: Response) => {
         const user = new User({ name, email, password, avatar });
         await user.save();
 
-        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ userId: user._id }, FINAL_JWT_SECRET, { expiresIn: '7d' });
 
         res.status(201).json({
             success: true,
@@ -42,7 +48,7 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ success: false, message: 'Invalid email or password' });
         }
 
-        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ userId: user._id }, FINAL_JWT_SECRET, { expiresIn: '7d' });
 
         res.json({
             success: true,
@@ -59,7 +65,7 @@ export const login = async (req: Request, res: Response) => {
 // Get Me
 export const getMe = async (req: AuthRequest, res: Response) => {
     try {
-        const user = await User.findById(req.userId).select('-password');
+        const user = await User.findById(req.user.userId).select('-password');
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }

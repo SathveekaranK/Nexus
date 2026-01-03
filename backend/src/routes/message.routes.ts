@@ -1,6 +1,5 @@
 import express from 'express';
 import { getMessages, sendMessage } from '../controllers/message.controller';
-import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -25,7 +24,7 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.get('/', authMiddleware, getMessages);
+router.get('/', getMessages);
 
 /**
  * @swagger
@@ -55,6 +54,6 @@ router.get('/', authMiddleware, getMessages);
  *       500:
  *         description: Server error
  */
-router.post('/', authMiddleware, sendMessage);
+router.post('/', sendMessage);
 
 export default router;

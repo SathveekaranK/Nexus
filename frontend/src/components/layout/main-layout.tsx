@@ -59,13 +59,8 @@ export default function MainLayout({
   }, [allChannels, activeChannelId, activeViewType]);
 
   const handleSaveChannel = (channelName: string) => {
-    const newChannel: ChannelType = {
-      id: `chan-${Date.now()}`,
-      name: channelName.toLowerCase().replace(/\s/g, '-'),
-      type: 'channel',
-      memberIds: [currentUser.id],
-    };
-    setAllChannels((prev) => [...prev, newChannel]);
+    // Channel creation is handled by Redux in the dialog
+    console.log("Channel created:", channelName);
   };
 
   const { filteredDMs, filteredChannels } = useMemo(() => {

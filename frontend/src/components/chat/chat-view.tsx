@@ -19,9 +19,7 @@ import {
   User as UserIcon,
   MoreVertical,
   Search,
-  Star,
   BellOff,
-  UserPlus,
   LogOut,
   Pin,
 } from 'lucide-react';
@@ -49,6 +47,7 @@ import {
 import UserProfileDialog from '../user/user-profile-dialog';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import PinnedMessagesDialog from './pinned-messages-dialog';
+import AddMemberDialog from '../channel/add-member-dialog';
 
 
 const getStatusClasses = (status: User['status']) => {
@@ -259,10 +258,11 @@ const ProfileDialog = ({
                 <h3 className="text-sm font-semibold text-muted-foreground">
                   {channelMembers.length} Members
                 </h3>
-                <Button variant="ghost" size="sm">
-                  <UserPlus className="mr-2" />
-                  Add
-                </Button>
+                <AddMemberDialog
+                  channelId={channel.id}
+                  users={users}
+                  currentMemberIds={channel.memberIds || []}
+                />
               </div>
               <ScrollArea className="h-40">
                 <div className="space-y-2">
@@ -525,7 +525,7 @@ export default function ChatView({
 
     if (isImage || isVideo) {
       const reader = new FileReader();
-      reader.onload = async (e) => {
+      reader.onload = async () => {
         // Upload file first
         try {
           const uploadedFile = await api.uploadFile(file);
@@ -681,7 +681,9 @@ export default function ChatView({
     }
 
     setMessages(prev => prev.map(m => m.id === message.id ? { ...m, pinned: !isPinned } : m));
-    onUpdateChannel({ ...activeChannel, pinnedMessageIds: newPinnedIds });
+    if (onUpdateChannel) {
+      onUpdateChannel({ ...activeChannel, pinnedMessageIds: newPinnedIds });
+    }
     api.pinMessage(message.id).catch(console.error);
 
   };

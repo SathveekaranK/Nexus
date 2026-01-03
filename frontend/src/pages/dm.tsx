@@ -23,7 +23,7 @@ export default function DmPage({ currentUser }: DmPageProps) {
 
     useEffect(() => {
         if (userId) {
-            dispatch(fetchMessages(userId));
+            dispatch(fetchMessages({ userId }));
 
             // Find the other user to set as the channel name
             // If messaging ourselves, user found is us.

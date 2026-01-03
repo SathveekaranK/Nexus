@@ -1,23 +1,31 @@
 import { Response } from 'express';
 import { Message } from '../models/Message';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 // Get Messages
 export const getMessages = async (req: AuthRequest, res: Response) => {
     try {
-        const { userId } = req.query;
-        const myId = req.userId;
+        const { userId, channelId } = req.query;
+        const myId = req.user.userId;
 
-        if (!userId) {
-            return res.status(400).json({ success: false, message: 'userId query param required' });
+        let query: any = {};
+
+        if (channelId) {
+            // Group Channel Messages
+            query = { channelId };
+        } else if (userId) {
+            // Direct Messages
+            query = {
+                $or: [
+                    { senderId: myId, recipientId: userId },
+                    { senderId: userId, recipientId: myId }
+                ]
+            };
+        } else {
+            return res.status(400).json({ success: false, message: 'userId or channelId query param required' });
         }
 
-        const messages = await Message.find({
-            $or: [
-                { senderId: myId, recipientId: userId },
-                { senderId: userId, recipientId: myId }
-            ]
-        }).sort({ createdAt: 1 });
+        const messages = await Message.find(query).sort({ createdAt: 1 });
 
         res.json({ success: true, data: messages });
     } catch (error: any) {
@@ -28,12 +36,17 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
 // Send Message
 export const sendMessage = async (req: AuthRequest, res: Response) => {
     try {
-        const { recipientId, content } = req.body;
-        const senderId = req.userId;
+        const { recipientId, channelId, content } = req.body;
+        const senderId = req.user.userId;
+
+        if (!recipientId && !channelId) {
+            return res.status(400).json({ success: false, message: 'recipientId or channelId required' });
+        }
 
         const message = new Message({
             senderId,
             recipientId,
+            channelId,
             content
         });
 
