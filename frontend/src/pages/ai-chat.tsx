@@ -1,7 +1,10 @@
-import AiChatView from "@/components/ai-chat-view";
-import { USERS, CURRENT_USER_ID } from "@/lib/data";
+import AiChatView from "@/components/ai/ai-chat-view";
+import { User } from "@/lib/types";
 
-export default function AiChatPage() {
-    const currentUser = USERS.find((u) => u.id === CURRENT_USER_ID)!;
+interface AiChatPageProps {
+    currentUser: User;
+}
+
+export default function AiChatPage({ currentUser }: AiChatPageProps) {
     return <AiChatView currentUser={currentUser} />;
 }

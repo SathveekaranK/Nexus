@@ -112,7 +112,7 @@ export default function AgendaSidebar({ selectedDate, events, onDeleteEvent, onE
                                             {participants.map(user => (
                                                 <div key={user.id} className="relative inline-block">
                                                     <Avatar className="h-6 w-6 rounded-full ring-2 ring-background">
-                                                        <AvatarImage src={user?.avatarUrl} data-ai-hint="person portrait" />
+                                                        <AvatarImage src={user?.avatar} data-ai-hint="person portrait" />
                                                         <AvatarFallback>{user?.name.charAt(0)}</AvatarFallback>
                                                     </Avatar>
                                                     <div className={cn("absolute bottom-0 right-0 h-2 w-2 rounded-full border border-background", getStatusClasses(user.status))} />

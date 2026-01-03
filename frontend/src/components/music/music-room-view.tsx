@@ -3,6 +3,7 @@
 import type { MusicRoom, User, Message, Song } from '@/lib/types';
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { api } from '@/lib/api-client';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,14 +21,13 @@ import {
   Headphones,
   Settings,
   LogOut,
-  Music2,
-  Menu
+  Music2
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { format } from 'date-fns';
-import MessageItem from '../message-item';
+import MessageItem from '../chat/message-item';
 import { USERS } from '@/lib/data';
-import UserProfileDialog from '../user-profile-dialog';
+import UserProfileDialog from '../user/user-profile-dialog';
 import { useToast } from '@/hooks/use-toast';
 import AddMusicDialog from './add-music-dialog';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
@@ -42,7 +42,7 @@ const getStatusClasses = (status: User['status']) => {
   }
 }
 
-const MusicPlayer = ({ room, nowPlaying, setNowPlaying }: { room: MusicRoom; nowPlaying: Song; setNowPlaying: (song: Song) => void; }) => {
+const MusicPlayer = ({ nowPlaying, setNowPlaying }: { nowPlaying: Song; setNowPlaying: (song: Song) => void; }) => {
   const [isPlaying, setIsPlaying] = useState(true);
 
   return (
@@ -183,7 +183,7 @@ const ParticipantsList = ({ participants }: { participants: User[] }) => (
           <div key={user.id} className="flex items-center gap-3">
             <div className="relative">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="person portrait" />
+                <AvatarImage src={user.avatar} alt={user.name} data-ai-hint="person portrait" />
                 <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className={cn("absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-secondary", getStatusClasses(user.status))} />
@@ -198,7 +198,7 @@ const ParticipantsList = ({ participants }: { participants: User[] }) => (
 
 export default function MusicRoomView({ room, currentUser }: { room: MusicRoom; currentUser: User; }) {
   const navigate = useNavigate();
-  const [nowPlaying, setNowPlaying] = useState(room.playlist[room.nowPlayingIndex]);
+  const [nowPlaying, setNowPlaying] = useState(room.playlist[room.nowPlayingIndex] || room.playlist[0]);
   const [playlist, setPlaylist] = useState<Song[]>(room.playlist);
   const [isAddMusicOpen, setIsAddMusicOpen] = useState(false);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
@@ -207,7 +207,7 @@ export default function MusicRoomView({ room, currentUser }: { room: MusicRoom; 
     navigate('/music');
   };
 
-  const handleSongAdded = (songTitle: string) => {
+  const handleSongAdded = async (songTitle: string) => {
     // This is a placeholder. In a real app, you'd fetch song details from Spotify API
     const newSong: Song = {
       title: songTitle.split('by')[0]?.trim() || "New Song",
@@ -217,7 +217,13 @@ export default function MusicRoomView({ room, currentUser }: { room: MusicRoom; 
       coverArtUrl: `https://picsum.photos/seed/${Math.random()}/300/300`,
       duration: '3:00'
     };
-    setPlaylist(prev => [...prev, newSong]);
+
+    try {
+      await api.addSong(room.id, newSong);
+      setPlaylist(prev => [...prev, newSong]);
+    } catch (error) {
+      console.error("Failed to add song", error);
+    }
   };
 
   const SidebarContent = () => (
@@ -259,7 +265,7 @@ export default function MusicRoomView({ room, currentUser }: { room: MusicRoom; 
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
           <div className="p-4">
-            <MusicPlayer room={room} nowPlaying={nowPlaying} setNowPlaying={setNowPlaying} />
+            <MusicPlayer nowPlaying={nowPlaying} setNowPlaying={setNowPlaying} />
           </div>
           <VoiceChannelControls />
           <RoomChat initialMessages={room.messages} currentUser={currentUser} />

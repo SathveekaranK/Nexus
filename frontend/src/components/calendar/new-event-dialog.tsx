@@ -158,7 +158,7 @@ export default function NewEventDialog({ isOpen, onOpenChange, onSave, onUpdate,
                                         >
                                             <div className="relative">
                                                 <Avatar className="h-6 w-6">
-                                                    <AvatarImage src={user.avatarUrl} />
+                                                    <AvatarImage src={user.avatar} />
                                                     <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                                                 </Avatar>
                                                 <div className={cn("absolute bottom-0 -right-1 h-2 w-2 rounded-full border border-background", getStatusClasses(user.status))} />

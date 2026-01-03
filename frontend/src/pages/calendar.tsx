@@ -1,5 +1,10 @@
-import CalendarView from "@/components/calendar-view";
+import CalendarView from "@/components/calendar/calendar-view";
+import { User } from "@/lib/types";
 
-export default function CalendarPage() {
-    return <CalendarView />;
+interface CalendarPageProps {
+    currentUser: User;
+}
+
+export default function CalendarPage({ currentUser }: CalendarPageProps) {
+    return <CalendarView currentUser={currentUser} />;
 }

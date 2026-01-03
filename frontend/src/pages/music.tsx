@@ -95,7 +95,7 @@ export default function MusicPage() {
                                 <div className="flex -space-x-2 overflow-hidden mb-4">
                                     {room.participants.map(user => (
                                         <Avatar key={user.id} className="inline-block h-8 w-8 rounded-full ring-2 ring-background">
-                                            <AvatarImage src={user?.avatarUrl} data-ai-hint="person portrait" />
+                                            <AvatarImage src={user?.avatar} data-ai-hint="person portrait" />
                                             <AvatarFallback>{user?.name.charAt(0)}</AvatarFallback>
                                         </Avatar>
                                     ))}

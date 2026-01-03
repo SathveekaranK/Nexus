@@ -2,12 +2,12 @@
 import type { User, Channel, Message, MusicRoom, Song, CalendarEvent } from './types';
 
 export const USERS: User[] = [
-  { id: 'user-1', name: 'Alice', avatarUrl: 'https://picsum.photos/seed/101/40/40', status: 'online', customStatus: 'Developing new features ✨' },
-  { id: 'user-2', name: 'Bob', avatarUrl: 'https://picsum.photos/seed/102/40/40', status: 'offline' },
-  { id: 'user-3', name: 'Charlie', avatarUrl: 'https://picsum.photos/seed/103/40/40', status: 'away', customStatus: 'On a lunch break' },
-  { id: 'user-4', name: 'David', avatarUrl: 'https://picsum.photos/seed/104/40/40', status: 'dnd', customStatus: 'In a meeting' },
-  { id: 'user-5', name: 'Eve', avatarUrl: 'https://picsum.photos/seed/105/40/40', status: 'online' },
-  { id: 'nexus-ai', name: 'Nexus AI', avatarUrl: 'https://picsum.photos/seed/999/40/40', status: 'online', customStatus: 'Ready to assist!' },
+  { id: 'user-1', name: 'Alice', avatar: 'https://picsum.photos/seed/101/40/40', status: 'online', customStatus: 'Developing new features ✨' },
+  { id: 'user-2', name: 'Bob', avatar: 'https://picsum.photos/seed/102/40/40', status: 'offline' },
+  { id: 'user-3', name: 'Charlie', avatar: 'https://picsum.photos/seed/103/40/40', status: 'away', customStatus: 'On a lunch break' },
+  { id: 'user-4', name: 'David', avatar: 'https://picsum.photos/seed/104/40/40', status: 'dnd', customStatus: 'In a meeting' },
+  { id: 'user-5', name: 'Eve', avatar: 'https://picsum.photos/seed/105/40/40', status: 'online' },
+  { id: 'nexus-ai', name: 'Nexus AI', avatar: 'https://picsum.photos/seed/999/40/40', status: 'online', customStatus: 'Ready to assist!' },
 ];
 
 export const CURRENT_USER_ID = 'user-1';
@@ -18,7 +18,7 @@ export const CHANNELS: Channel[] = [
   { id: 'chan-2', name: 'frontend', type: 'channel', memberIds: ['user-1', 'user-4', 'user-5'], description: 'All things related to our frontend stack.', pinnedMessageIds: [] },
   { id: 'chan-3', name: 'backend', type: 'channel', memberIds: ['user-1', 'user-2', 'user-3'], description: 'Discussion about servers, APIs, and databases.', pinnedMessageIds: [] },
   { id: 'chan-4', name: 'design', type: 'channel', memberIds: ['user-1', 'user-3'], description: 'Share design mockups and feedback.', pinnedMessageIds: [] },
-  
+
   // Direct Messages
   { id: 'dm-1', name: 'Bob', type: 'dm', memberIds: ['user-1', 'user-2'] },
   { id: 'dm-2', name: 'Charlie', type: 'dm', memberIds: ['user-1', 'user-3'] },
@@ -48,31 +48,31 @@ export const CALENDAR_EVENTS: CalendarEvent[] = [
 
 
 const placeholderSongs: Song[] = [
-    { title: 'Blinding Lights', artist: 'The Weeknd', album: 'After Hours', year: 2020, coverArtUrl: 'https://picsum.photos/seed/301/300/300', duration: '3:20'},
-    { title: 'As It Was', artist: 'Harry Styles', album: 'Harry\'s House', year: 2022, coverArtUrl: 'https://picsum.photos/seed/302/300/300', duration: '2:47'},
-    { title: 'Levitating', artist: 'Dua Lipa', album: 'Future Nostalgia', year: 2020, coverArtUrl: 'https://picsum.photos/seed/303/300/300', duration: '3:23' },
-    { title: 'Good 4 U', artist: 'Olivia Rodrigo', album: 'SOUR', year: 2021, coverArtUrl: 'https://picsum.photos/seed/304/300/300', duration: '2:58'},
-    { title: 'Peaches', artist: 'Justin Bieber', album: 'Justice', year: 2021, coverArtUrl: 'https://picsum.photos/seed/305/300/300', duration: '3:18'},
+  { title: 'Blinding Lights', artist: 'The Weeknd', album: 'After Hours', year: 2020, coverArtUrl: 'https://picsum.photos/seed/301/300/300', duration: '3:20' },
+  { title: 'As It Was', artist: 'Harry Styles', album: 'Harry\'s House', year: 2022, coverArtUrl: 'https://picsum.photos/seed/302/300/300', duration: '2:47' },
+  { title: 'Levitating', artist: 'Dua Lipa', album: 'Future Nostalgia', year: 2020, coverArtUrl: 'https://picsum.photos/seed/303/300/300', duration: '3:23' },
+  { title: 'Good 4 U', artist: 'Olivia Rodrigo', album: 'SOUR', year: 2021, coverArtUrl: 'https://picsum.photos/seed/304/300/300', duration: '2:58' },
+  { title: 'Peaches', artist: 'Justin Bieber', album: 'Justice', year: 2021, coverArtUrl: 'https://picsum.photos/seed/305/300/300', duration: '3:18' },
 ]
 
 export const MUSIC_ROOMS: MusicRoom[] = [
-    {
-        id: 'room-1',
-        name: 'Chill Lo-fi Beats',
-        participants: [USERS[0], USERS[2], USERS[4]],
-        playlist: placeholderSongs.slice(0, 3),
-        nowPlayingIndex: 0,
-        messages: [
-            { id: 'music-msg-1', senderId: 'user-3', content: 'This song is a classic!', timestamp: '10:30 PM', channelId: 'room-1', type: 'text'},
-            { id: 'music-msg-2', senderId: 'user-5', content: 'Agreed! 🔥', timestamp: '10:31 PM', channelId: 'room-1', type: 'text'}
-        ]
-    },
-    {
-        id: 'room-2',
-        name: 'Indie Hits',
-        participants: [USERS[1], USERS[3]],
-        playlist: placeholderSongs.slice(2, 5),
-        nowPlayingIndex: 1,
-        messages: []
-    }
+  {
+    id: 'room-1',
+    name: 'Chill Lo-fi Beats',
+    participants: [USERS[0], USERS[2], USERS[4]],
+    playlist: placeholderSongs.slice(0, 3),
+    nowPlayingIndex: 0,
+    messages: [
+      { id: 'music-msg-1', senderId: 'user-3', content: 'This song is a classic!', timestamp: '10:30 PM', channelId: 'room-1', type: 'text' },
+      { id: 'music-msg-2', senderId: 'user-5', content: 'Agreed! 🔥', timestamp: '10:31 PM', channelId: 'room-1', type: 'text' }
+    ]
+  },
+  {
+    id: 'room-2',
+    name: 'Indie Hits',
+    participants: [USERS[1], USERS[3]],
+    playlist: placeholderSongs.slice(2, 5),
+    nowPlayingIndex: 1,
+    messages: []
+  }
 ];

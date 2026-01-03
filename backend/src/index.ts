@@ -1,29 +1,34 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { connectDB } from './db';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './swagger';
 
-import { connectDB } from './config/db';
+// Routes
+import authRoutes from './routes/auth.routes';
+import userRoutes from './routes/user.routes';
+import messageRoutes from './routes/message.routes';
 
 dotenv.config();
-
-// Connect to Database
-connectDB();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-
-import { router as apiRoutes } from './routes';
-
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json());
 
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.use('/api', apiRoutes);
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/messages', messageRoutes);
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+// Start Server
+connectDB().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Backend server running on port ${PORT}`);
+    });
 });

@@ -1,33 +1,70 @@
-import ChatView from "@/components/chat-view";
-import { MESSAGES, USERS, CURRENT_USER_ID, CHANNELS } from "@/lib/data";
-import { Channel } from "@/lib/types";
+import { useEffect, useState } from 'react';
+import ChatView from "@/components/chat/chat-view";
+import { Channel, User } from '@/lib/types';
 import { useParams } from "react-router-dom";
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '@/store/store';
+import { fetchMessages, sendMessage } from '@/services/message/messageSlice';
 
-export default function DmPage() {
-    const { channelId } = useParams<{ channelId: string }>();
-    if (!channelId) {
-        return <div className="flex-1 flex items-center justify-center text-muted-foreground">Chat ID missing.</div>;
+interface DmPageProps {
+    currentUser: User;
+}
+
+export default function DmPage({ currentUser }: DmPageProps) {
+    // The route is /dms/:channelId
+    // But in our virtual DM world, 'channelId' is actually the target user's ID
+    const { channelId: userId } = useParams<{ channelId: string }>();
+    const dispatch = useDispatch<AppDispatch>();
+    const { messages } = useSelector((state: RootState) => state.messages);
+    const { users } = useSelector((state: RootState) => state.users);
+
+    // We construct a "virtual" channel object for the view
+    const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
+
+    useEffect(() => {
+        if (userId) {
+            dispatch(fetchMessages(userId));
+
+            // Find the other user to set as the channel name
+            // If messaging ourselves, user found is us.
+            const otherUser = users.find(u => u.id === userId);
+
+            // If user not found yet (maybe users load slow), fallback or wait.
+            // But we can construct channel anyway to avoid null errors if we want.
+            const channelName = otherUser ? otherUser.name : 'Unknown User';
+            const isSelf = otherUser?.id === currentUser.id;
+
+            setActiveChannel({
+                id: userId,
+                name: isSelf ? `${channelName} (you)` : channelName,
+                type: 'dm',
+                memberIds: [currentUser.id, userId]
+            });
+        }
+    }, [userId, dispatch, users, currentUser.id]);
+
+    const handleSendMessage = (content: string) => {
+        if (userId) {
+            dispatch(sendMessage({ recipientId: userId, content }));
+        }
+    };
+
+    if (!userId) {
+        return <div className="flex-1 flex items-center justify-center text-muted-foreground">User ID missing.</div>;
     }
-
-    const activeChannel = CHANNELS.find(c => c.id === channelId) as Channel;
-    const currentUser = USERS.find((u) => u.id === CURRENT_USER_ID)!;
-    const initialMessages = MESSAGES.filter(m => m.channelId === channelId);
 
     if (!activeChannel) {
-        return <div className="flex-1 flex items-center justify-center text-muted-foreground">Chat not found.</div>
+        return <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading chat...</div>
     }
-
-    // Since onUpdateChannel is not needed for DMs in the current implementation, we pass a no-op function.
-    const handleUpdateChannel = () => { };
 
     return (
         <ChatView
-            key={channelId}
+            key={userId}
             activeChannel={activeChannel}
-            initialMessages={initialMessages}
-            users={USERS}
+            initialMessages={messages}
+            users={users}
             currentUser={currentUser}
-            onUpdateChannel={handleUpdateChannel}
+            onSendMessage={handleSendMessage}
         />
     );
 }

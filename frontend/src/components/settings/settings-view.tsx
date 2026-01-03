@@ -83,7 +83,7 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <div className="relative">
                     <Avatar className="h-20 w-20">
-                        <AvatarImage src={user.avatarUrl} data-ai-hint="person portrait" />
+                        <AvatarImage src={user.avatar} data-ai-hint="person portrait" />
                         <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <DropdownMenu>

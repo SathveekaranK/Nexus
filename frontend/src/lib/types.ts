@@ -2,7 +2,7 @@
 export interface User {
   id: string;
   name: string;
-  avatarUrl: string;
+  avatar: string;
   status: 'online' | 'offline' | 'away' | 'dnd';
   customStatus?: string;
 }

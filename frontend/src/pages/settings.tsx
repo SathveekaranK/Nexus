@@ -1,7 +1,10 @@
 import SettingsView from "@/components/settings/settings-view";
-import { USERS, CURRENT_USER_ID } from "@/lib/data";
+import { User } from "@/lib/types";
 
-export default function SettingsPage() {
-    const currentUser = USERS.find((u) => u.id === CURRENT_USER_ID)!;
+interface SettingsPageProps {
+    currentUser: User;
+}
+
+export default function SettingsPage({ currentUser }: SettingsPageProps) {
     return <SettingsView user={currentUser} />;
 }
