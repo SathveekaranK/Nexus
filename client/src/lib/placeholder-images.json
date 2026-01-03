@@ -1,0 +1,40 @@
+{
+  "placeholderImages": [
+    {
+      "id": "user-avatar-1",
+      "imageUrl": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "description": "User Avatar 1",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "user-avatar-2",
+      "imageUrl": "https://images.unsplash.com/photo-1540569014015-19a7be504e3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "description": "User Avatar 2",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "user-avatar-3",
+      "imageUrl": "https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "description": "User Avatar 3",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "user-avatar-4",
+      "imageUrl": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "description": "User Avatar 4",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "user-avatar-5",
+      "imageUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "description": "User Avatar 5",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "user-avatar-nexus",
+      "imageUrl": "https://images.unsplash.com/photo-1671490290911-e9e235c2d903?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxyb2JvdCUyMGJvdHxlbnwwfHx8fDE3NjczNzY2MDh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "description": "Nexus AI Bot Avatar",
+      "imageHint": "robot bot"
+    }
+  ]
+}
