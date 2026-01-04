@@ -145,7 +145,7 @@ export default function VoiceChat() {
         console.log('[VoiceChat] Playing stream for:', peerId);
         const audio = document.createElement('audio');
         audio.srcObject = stream;
-        audio.playsInline = true; // Mobile iOS
+        audio.setAttribute('playsinline', 'true'); // Mobile iOS
         audio.autoplay = true;
         // audio.controls = true; // Debug: show controls if needed
 

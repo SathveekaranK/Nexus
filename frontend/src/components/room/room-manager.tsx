@@ -49,8 +49,11 @@ const RoomManager = ({ children }: RoomManagerProps) => {
 
         // Voice Events
         socket.on('user_connected', (newPeerId) => {
-            console.log('New peer connected:', newPeerId);
-            dispatch(addPeer(newPeerId));
+            console.log('[RoomManager] Received user_connected event. Peer ID:', newPeerId);
+            if (newPeerId) {
+                dispatch(addPeer(newPeerId));
+                console.log('[RoomManager] Dispatched addPeer for:', newPeerId);
+            }
         });
 
         socket.on('user_disconnected', (peerId) => {
