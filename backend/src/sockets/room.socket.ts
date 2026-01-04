@@ -4,10 +4,11 @@ import { Room } from '../models/Room';
 export const roomSocketHandler = (io: Server) => {
     io.on('connection', (socket: Socket) => {
 
+
         socket.on('join_room', async ({ roomId, userId, peerId }) => {
             try {
                 socket.join(roomId);
-                console.log(`User ${userId} joined room ${roomId} with peerId ${peerId}`);
+                console.log(`User ${userId} joined room ${roomId}`);
 
                 // Update room members
                 const room = await Room.findOneAndUpdate(
@@ -16,8 +17,11 @@ export const roomSocketHandler = (io: Server) => {
                     { new: true }
                 );
 
-                // Broadcast to others in room
-                socket.to(roomId).emit('user_connected', peerId);
+                // Only emit voice peer event if peerId is provided
+                if (peerId) {
+                    console.log(`Voice peer connected: ${peerId}`);
+                    socket.to(roomId).emit('user_connected', peerId);
+                }
 
                 // Send current room state (media) to the joining user
                 if (room && room.currentMedia) {
@@ -37,7 +41,10 @@ export const roomSocketHandler = (io: Server) => {
                     { new: true } // Return updated doc
                 );
 
-                socket.to(roomId).emit('user_disconnected', peerId);
+                // Only emit voice peer event if peerId is provided
+                if (peerId) {
+                    socket.to(roomId).emit('user_disconnected', peerId);
+                }
 
                 // Auto-delete if empty
                 if (room && room.members.length === 0) {
