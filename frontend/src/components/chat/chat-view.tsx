@@ -48,6 +48,10 @@ import UserProfileDialog from '../user/user-profile-dialog';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import PinnedMessagesDialog from './pinned-messages-dialog';
 import AddMemberDialog from '../channel/add-member-dialog';
+import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { AppDispatch } from '@/store/store';
+import { leaveChannel } from '@/services/channel/channelSlice';
 
 
 const getStatusClasses = (status: User['status']) => {
@@ -177,12 +181,14 @@ const ProfileDialog = ({
   isOpen,
   onOpenChange,
   onViewProfile,
+  onLeave,
 }: {
   channel: Channel;
   users: User[];
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onViewProfile: (user: User) => void;
+  onLeave?: () => void;
 }) => {
   const isDm = channel.type === 'dm';
   const otherUserId = channel.memberIds?.find((id) => id !== 'user-1');
@@ -294,7 +300,7 @@ const ProfileDialog = ({
               </ScrollArea>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="destructive" size="sm">
+              <Button variant="destructive" size="sm" onClick={onLeave}>
                 <LogOut className="mr-2" />
                 Leave Channel
               </Button>
@@ -314,6 +320,8 @@ export default function ChatView({
   onUpdateChannel,
   onSendMessage,
 }: ChatViewProps) {
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>(initialMessages.map(m => ({
     ...m,
     pinned: activeChannel.pinnedMessageIds?.includes(m.id)
@@ -321,6 +329,18 @@ export default function ChatView({
 
   const [inputValue, setInputValue] = useState('');
   const { toast } = useToast();
+
+  const handleLeaveChannel = async () => {
+    try {
+      await dispatch(leaveChannel(activeChannel.id)).unwrap();
+      toast({ title: 'Left channel successfully' });
+      setIsProfileDialogOpen(false);
+      navigate('/dms'); // Default fallback after leaving
+    } catch (error: any) {
+      toast({ title: 'Failed to leave channel', description: error, variant: 'destructive' });
+    }
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -879,6 +899,7 @@ export default function ChatView({
         isOpen={isProfileDialogOpen}
         onOpenChange={setIsProfileDialogOpen}
         onViewProfile={handleViewProfile}
+        onLeave={handleLeaveChannel}
       />
       {viewedUser && (
         <UserProfileDialog

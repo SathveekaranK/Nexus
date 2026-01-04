@@ -38,4 +38,8 @@ export const api = {
     reactToMessage: (messageId: string, emoji: string) => apiFromAxios.post(`/messages/${messageId}/reactions`, { emoji }) as unknown as Promise<void>,
     pinMessage: (messageId: string) => apiFromAxios.post(`/messages/${messageId}/pin`) as unknown as Promise<void>,
     addSong: (roomId: string, song: any) => apiFromAxios.post(`/music/${roomId}/songs`, song) as unknown as Promise<any>,
+
+    // Rooms
+    createRoom: () => apiFromAxios.post<{ roomId: string; members: string[]; currentSong: any }>('/rooms/create') as unknown as Promise<{ roomId: string; members: string[]; currentSong: any }>,
+    getRoom: (roomId: string) => apiFromAxios.get<{ roomId: string; members: string[]; currentSong: any }>(`/rooms/${roomId}`) as unknown as Promise<{ roomId: string; members: string[]; currentSong: any }>,
 };

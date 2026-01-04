@@ -52,6 +52,18 @@ export const addMemberToChannel = createAsyncThunk(
     }
 );
 
+export const leaveChannel = createAsyncThunk(
+    'channels/leaveChannel',
+    async (channelId: string, { rejectWithValue }) => {
+        try {
+            await api.post(`/channels/${channelId}/leave`);
+            return channelId;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 const channelSlice = createSlice({
     name: 'channels',
     initialState,
@@ -95,6 +107,11 @@ const channelSlice = createSlice({
                         memberIds: updatedChannel.members || updatedChannel.memberIds
                     };
                 }
+            })
+            // Leave Channel
+            .addCase(leaveChannel.fulfilled, (state, action) => {
+                const channelId = action.payload;
+                state.channels = state.channels.filter(c => c.id !== channelId);
             });
     },
 });

@@ -13,7 +13,6 @@ import { AppDispatch, RootState } from "@/store/store";
 import ChannelPage from "@/pages/channel";
 import DmPage from "@/pages/dm";
 import MusicPage from "@/pages/music";
-import MusicRoomPage from "@/pages/music-room";
 import AiChatPage from "@/pages/ai-chat";
 import CalendarPage from "@/pages/calendar";
 import SettingsPage from "@/pages/settings";
@@ -76,7 +75,6 @@ export default function App() {
                                     <Route path="/channels/:channelId" element={<ChannelPage currentUser={currentUser} />} />
                                     <Route path="/dms/:channelId" element={<DmPage currentUser={currentUser} />} />
                                     <Route path="/music" element={<MusicPage />} />
-                                    <Route path="/music/:roomId" element={<MusicRoomPage currentUser={currentUser} />} />
                                     <Route path="/ai-chat" element={<AiChatPage currentUser={currentUser} />} />
                                     <Route path="/calendar" element={<CalendarPage currentUser={currentUser} />} />
                                     <Route path="/settings" element={<SettingsPage currentUser={currentUser} />} />

@@ -1,66 +1,42 @@
-# Deployment Guide for Nexus on AWS
+# Deployment Guide for Nexus
 
-This project is configured for a microservices deployment architecture.
+This project consists of a separate Backend (Node.js/Express) and Frontend (Vite/React). For a successful deployment on AWS Amplify, follow these steps.
 
-## Architecture
-
-- **Frontend**: React (Vite) served via Nginx Container.
-- **Backend**: Node.js (Express) Container.
-- **Database**: MongoDB (AWS DocumentDB or MongoDB Atlas).
-
-## Prerequisites
-
-- AWS Account
-- Docker installed locally (for testing build)
-- AWS CLI configured (if deploying via CLI)
-
-## Deployment Steps
-
-### 1. Database (MongoDB)
-Set up a MongoDB instance.
-- **Option A (Recommended)**: Use MongoDB Atlas and get the connection string.
-- **Option B**: Use AWS DocumentDB.
-
-**Note Connection String**: `mongodb+srv://<username>:<password>@...`
-
-### 2. Backend Deployment (AWS App Runner or ECS)
-1.  Build the backend image:
-    ```bash
-    cd backend
-    docker build -t nexus-backend .
-    ```
-2.  Push to AWS ECR (Elastic Container Registry).
-3.  Deploy on **AWS App Runner** or **ECS**.
-4.  **Environment Variables** to set in AWS:
-    -   `PORT`: `3001`
-    -   `MONGODB_URI`: Your MongoDB connection string.
-    -   `JWT_SECRET`: A strong secret key.
-
-**Note the Backend URL** (e.g., `https://api.nexus-app.awsapprunner.com`).
-
-### 3. Frontend Deployment
-1.  Update `VITE_API_URL` for production build.
-    You can pass this as a build argument or create a production `.env` file.
-    
-    *Dockerfile modification if needed for dynamic build args:*
-    ```dockerfile
-    ARG VITE_API_URL
-    ENV VITE_API_URL=$VITE_API_URL
-    RUN npm run build
-    ```
-
-2.  Build the frontend image:
-    ```bash
-    cd frontend
-    docker build --build-arg VITE_API_URL=https://your-backend-url.com/api -t nexus-frontend .
-    ```
-3.  Push to ECR.
-4.  Deploy on **AWS App Runner** or **ECS**, or static hosting (S3 + CloudFront) by just copying the `dist` folder.
-
-## Local Testing via Docker Compose
-Run the entire stack locally:
-```bash
-docker-compose up --build
+## 1. Organizing for Git
+You can push both folders to a single GitHub repository. Your structure should be:
 ```
-Access Frontend: `http://localhost`
-Access Backend: `http://localhost:3001`
+/
+  backend/
+  frontend/
+```
+
+## 2. Deploying the Backend (AWS Amplify)
+1. **Create a New App**: Select GitHub as your source.
+2. **Select the Backend Branch**: Choose the repository and backend folder.
+3. **Build Settings**: Configure Amplify to build the backend.
+   - **Build Command**: `cd backend && npm install && npm run build`
+   - **Start Command**: `node backend/dist/index.js`
+4. **Environment Variables**: Add the following in the Amplify console:
+   - `MONGODB_URI`: Your MongoDB connection string.
+   - `JWT_SECRET`: A strong secret key.
+   - `FRONTEND_URL`: The URL of your deployed frontend (e.g., `https://main.d1234.amplifyapp.com`).
+   - `PORT`: `3001` (or whatever you prefer).
+
+## 3. Deploying the Frontend (AWS Amplify)
+1. **Create a New App**: Select the same GitHub repository.
+2. **Build Settings**:
+   - **Base Directory**: `frontend/dist`
+   - **Build Command**: `cd frontend && npm install && npm run build`
+3. **Environment Variables**:
+   - `VITE_API_URL`: The URL of your deployed backend (e.g., `https://backend.d5678.amplifyapp.com/api`).
+   - Note: Vite requires variables to be prefixed with `VITE_`.
+
+## 4. Socket.io and Websockets
+AWS Amplify Hosting for static sites might not support persistent WebSocket connections directly if you use it for the backend. It is recommended to deploy the **Backend** using **AWS App Runner** or **AWS Elastic Beanstalk** if you need stable WebSockets, as Amplify Hosting is optimized for SSR/Static sites.
+
+However, if you use Amplify for the Backend, ensure you are using a Compute-based deployment (like Amplify Gen 2 or App Runner integration).
+
+---
+## Connection Summary
+- **Frontend** calls **Backend** at `VITE_API_URL`.
+- **Backend** allows **Frontend** via `FRONTEND_URL` in CORS.

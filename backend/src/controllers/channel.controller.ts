@@ -74,3 +74,33 @@ export const addMember = async (req: Request | any, res: Response): Promise<void
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+export const leaveChannel = async (req: Request | any, res: Response): Promise<void> => {
+    try {
+        const { channelId } = req.params;
+        const userId = req.user.userId;
+
+        const channel = await Channel.findById(channelId);
+        if (!channel) {
+            res.status(404).json({ success: false, message: 'Channel not found' });
+            return;
+        }
+
+        if (!channel.members.includes(userId)) {
+            res.status(400).json({ success: false, message: 'User is not a member of this channel' });
+            return;
+        }
+
+        // Remove from Channel
+        channel.members = channel.members.filter(id => id.toString() !== userId);
+        await channel.save();
+
+        // Remove from User
+        await User.findByIdAndUpdate(userId, { $pull: { channels: channelId } });
+
+        res.status(200).json({ success: true, message: 'Successfully left the channel' });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+

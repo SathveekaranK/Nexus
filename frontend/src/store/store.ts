@@ -3,6 +3,7 @@ import authReducer from '@/services/auth/authSlice';
 import userReducer from '@/services/user/userSlice';
 import messageReducer from '@/services/message/messageSlice';
 import channelReducer from '@/services/channel/channelSlice';
+import roomReducer from '@/services/room/roomSlice';
 
 export const store = configureStore({
     reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
         users: userReducer,
         messages: messageReducer,
         channels: channelReducer,
+        room: roomReducer,
     },
 });
 

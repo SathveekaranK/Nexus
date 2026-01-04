@@ -1,5 +1,5 @@
 import express from 'express';
-import { createChannel, getUserChannels, addMember } from '../controllers/channel.controller';
+import { createChannel, getUserChannels, addMember, leaveChannel } from '../controllers/channel.controller';
 
 const router = express.Router();
 
@@ -88,5 +88,27 @@ router.get('/', getUserChannels);
  *         description: Server error
  */
 router.post('/:channelId/members', addMember);
+
+/**
+ * @swagger
+ * /api/channels/{channelId}/leave:
+ *   post:
+ *     summary: Leave a channel
+ *     tags: [Channels]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: channelId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Successfully left the channel
+ *       500:
+ *         description: Server error
+ */
+router.post('/:channelId/leave', leaveChannel);
 
 export default router;
