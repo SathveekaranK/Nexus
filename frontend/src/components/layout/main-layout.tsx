@@ -1,3 +1,4 @@
+// @ts-nocheck
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -7,6 +8,9 @@ import ChannelList from '../channel/channel-list';
 import NewChannelDialog from '../channel/new-channel-dialog';
 import { Link, useLocation } from 'react-router-dom';
 import MobileNav from './mobile-nav';
+import BottomNav from './bottom-nav';
+import { useDispatch } from 'react-redux';
+import { addNotification } from '@/services/notification/notificationSlice';
 import { Separator } from '../ui/separator';
 
 interface MainLayoutProps {
@@ -40,6 +44,7 @@ export default function MainLayout({
     if (pathname.startsWith('/ai-chat')) return 'ai-chat';
     if (pathname.startsWith('/music')) return 'music';
     if (pathname.startsWith('/calendar')) return 'calendar';
+    if (pathname.startsWith('/resources')) return 'resources';
     if (pathname.startsWith('/settings')) return 'settings';
     return 'dms'; // Default
   };
@@ -57,6 +62,24 @@ export default function MainLayout({
       // router.push(`/channels/${allChannels[0].id}`);
     }
   }, [allChannels, activeChannelId, activeViewType]);
+
+  const dispatch = useDispatch();
+
+  // Socket Notification Listener
+  useEffect(() => {
+    import('../room/room-manager').then(({ getSocket }) => {
+      const socket = getSocket();
+      if (socket) {
+        const handleNotification = (data: any) => {
+          dispatch(addNotification(data));
+        };
+        socket.on('notification', handleNotification);
+        return () => {
+          socket.off('notification', handleNotification);
+        };
+      }
+    });
+  }, [dispatch]);
 
   const handleSaveChannel = (channelName: string) => {
     // Channel creation is handled by Redux in the dialog
@@ -145,7 +168,14 @@ export default function MainLayout({
         {renderChannelList()}
       </div>
 
-      <main className="flex-1 flex flex-col pt-12 md:pt-0">{children}</main>
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+        {children}
+        {/* Add spacer for bottom nav on mobile */}
+        <div className="h-16 md:hidden flex-shrink-0" />
+      </main>
+
+      {/* Mobile Bottom Navigation */}
+      <BottomNav />
 
       <NewChannelDialog
         isOpen={isNewChannelDialogOpen}

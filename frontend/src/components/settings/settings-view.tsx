@@ -17,13 +17,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import RolesTab from './roles-tab';
 
 const getStatusClasses = (status: User['status']) => {
   switch (status) {
-      case 'online': return 'bg-green-500';
-      case 'offline': return 'bg-gray-400 border-background';
-      case 'away': return 'bg-yellow-500';
-      case 'dnd': return 'bg-red-500';
+    case 'online': return 'bg-green-500';
+    case 'offline': return 'bg-gray-400 border-background';
+    case 'away': return 'bg-yellow-500';
+    case 'dnd': return 'bg-red-500';
   }
 }
 
@@ -54,12 +55,12 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
   }
 
   const handleStatusChange = (status: User['status']) => {
-    setUser({...user, status});
+    setUser({ ...user, status });
     // In a real app, this would also be an API call.
-     toast({
-        title: "Status Updated",
-        description: `Your status is now ${status}.`,
-      });
+    toast({
+      title: "Status Updated",
+      description: `Your status is now ${status}.`,
+    });
   }
 
   return (
@@ -72,34 +73,34 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
 
       <div className="flex-1 p-4 md:p-6 overflow-y-auto">
         <div className="max-w-3xl mx-auto space-y-8">
-          
+
           {/* Profile Settings */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><UserIcon className="h-5 w-5"/> My Profile</CardTitle>
+              <CardTitle className="flex items-center gap-2"><UserIcon className="h-5 w-5" /> My Profile</CardTitle>
               <CardDescription>Update your profile information and status.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <div className="relative">
-                    <Avatar className="h-20 w-20">
-                        <AvatarImage src={user.avatar} data-ai-hint="person portrait" />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                         <div className={cn(
-                            "absolute bottom-0 right-0 h-6 w-6 rounded-full border-4 border-card cursor-pointer",
-                            getStatusClasses(user.status)
-                          )} />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                          <DropdownMenuItem onSelect={() => handleStatusChange('online')}>Online</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => handleStatusChange('away')}>Away</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => handleStatusChange('dnd')}>Do Not Disturb</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => handleStatusChange('offline')}>Offline</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={user.avatar} data-ai-hint="person portrait" />
+                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <div className={cn(
+                        "absolute bottom-0 right-0 h-6 w-6 rounded-full border-4 border-card cursor-pointer",
+                        getStatusClasses(user.status)
+                      )} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onSelect={() => handleStatusChange('online')}>Online</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => handleStatusChange('away')}>Away</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => handleStatusChange('dnd')}>Do Not Disturb</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => handleStatusChange('offline')}>Offline</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
                   {isEditingProfile && (
                     <Button size="icon" className="absolute -top-2 -left-2 h-7 w-7 rounded-full">
@@ -109,28 +110,28 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
                   )}
                 </div>
                 <div className="grid gap-1.5 flex-1 w-full">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input 
-                      id="name" 
-                      value={user.name} 
-                      onChange={(e) => setUser({...user, name: e.target.value})}
-                      disabled={!isEditingProfile} 
-                    />
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    value={user.name}
+                    onChange={(e) => setUser({ ...user, name: e.target.value })}
+                    disabled={!isEditingProfile}
+                  />
                 </div>
               </div>
-               <div className="grid gap-1.5 w-full">
-                  <Label htmlFor="customStatus">Custom Status</Label>
-                  <div className="relative">
-                    <Input 
-                      id="customStatus"
-                      placeholder="What's happening?"
-                      value={user.customStatus || ''} 
-                      onChange={(e) => setUser({...user, customStatus: e.target.value})}
-                      disabled={!isEditingProfile}
-                      className="pr-8"
-                    />
-                    <Smile className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  </div>
+              <div className="grid gap-1.5 w-full">
+                <Label htmlFor="customStatus">Custom Status</Label>
+                <div className="relative">
+                  <Input
+                    id="customStatus"
+                    placeholder="What's happening?"
+                    value={user.customStatus || ''}
+                    onChange={(e) => setUser({ ...user, customStatus: e.target.value })}
+                    disabled={!isEditingProfile}
+                    className="pr-8"
+                  />
+                  <Smile className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleProfileEditToggle}>
@@ -142,13 +143,13 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
               </div>
             </CardContent>
           </Card>
-          
+
           <Separator />
 
           {/* Account Settings */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Lock className="h-5 w-5"/> Account</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Lock className="h-5 w-5" /> Account</CardTitle>
               <CardDescription>Manage your account settings.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -161,28 +162,36 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
           </Card>
 
           <Separator />
-          
+
+          {/* Roles & Permissions */}
+          {(user.roles?.includes('admin') || user.roles?.includes('owner') || user.roles?.includes('member') || !user.roles || user.roles.length === 0) && (
+            <>
+              <RolesTab />
+              <Separator />
+            </>
+          )}
+
           {/* Notifications */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5"/> Notifications</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" /> Notifications</CardTitle>
               <CardDescription>Manage how you receive notifications.</CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground">Notification settings are coming soon.</p>
+              <p className="text-muted-foreground">Notification settings are coming soon.</p>
             </CardContent>
           </Card>
 
-           <Separator />
-          
+          <Separator />
+
           {/* Appearance */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5"/> Appearance</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5" /> Appearance</CardTitle>
               <CardDescription>Customize the look and feel of the app.</CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground">Theme customization is coming soon.</p>
+              <p className="text-muted-foreground">Theme customization is coming soon.</p>
             </CardContent>
           </Card>
         </div>

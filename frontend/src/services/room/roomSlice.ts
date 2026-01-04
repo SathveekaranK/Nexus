@@ -37,10 +37,10 @@ const initialState: RoomState = {
 
 export const createRoom = createAsyncThunk(
     'room/createRoom',
-    async (_, { rejectWithValue }) => {
+    async (data: { name?: string; genre?: string } | undefined, { rejectWithValue }) => {
         try {
             // Updated api-client required for this
-            const response: any = await api.createRoom(); // We'll add this to api-client
+            const response: any = await api.createRoom(data); // We'll add this to api-client
             return response.data;
         } catch (error: any) {
             return rejectWithValue(error.message);

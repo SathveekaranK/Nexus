@@ -15,6 +15,7 @@ import DmPage from "@/pages/dm";
 import MusicPage from "@/pages/music";
 import AiChatPage from "@/pages/ai-chat";
 import CalendarPage from "@/pages/calendar";
+import ResourcesPage from "@/pages/resources";
 import SettingsPage from "@/pages/settings";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
@@ -77,6 +78,7 @@ export default function App() {
                                     <Route path="/music" element={<MusicPage />} />
                                     <Route path="/ai-chat" element={<AiChatPage currentUser={currentUser} />} />
                                     <Route path="/calendar" element={<CalendarPage currentUser={currentUser} />} />
+                                    <Route path="/resources" element={<ResourcesPage />} />
                                     <Route path="/settings" element={<SettingsPage currentUser={currentUser} />} />
                                 </Routes>
                             </MainLayout>

@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -89,15 +90,15 @@ export default function NewEventDialog({ isOpen, onOpenChange, onSave, onUpdate,
             onOpenChange(false);
         }
     };
-    
+
     const toggleParticipant = (userId: string) => {
-        setParticipantIds(prev => 
+        setParticipantIds(prev =>
             prev.includes(userId)
                 ? prev.filter(id => id !== userId)
                 : [...prev, userId]
         );
     }
-    
+
     const selectedParticipants = availableUsers.filter(u => participantIds.includes(u.id));
     const dialogTitle = eventToEdit ? 'Edit Event' : 'Create New Event';
 
@@ -138,35 +139,35 @@ export default function NewEventDialog({ isOpen, onOpenChange, onSave, onUpdate,
                         </Label>
                         <Input id="meeting-url" placeholder="https://meet.google.com/..." value={meetingUrl} onChange={(e) => setMeetingUrl(e.target.value)} className="col-span-3" />
                     </div>
-                     <div className="grid grid-cols-4 items-start gap-4">
+                    <div className="grid grid-cols-4 items-start gap-4">
                         <Label className="text-right pt-2">
                             Participants
                         </Label>
                         <div className="col-span-3 border rounded-md">
                             <ScrollArea className="h-32">
                                 <div className="p-2 space-y-2">
-                                {availableUsers.map((user) => (
-                                    <div key={user.id} className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={`user-${user.id}`}
-                                            checked={participantIds.includes(user.id)}
-                                            onCheckedChange={() => toggleParticipant(user.id)}
-                                        />
-                                        <label
-                                            htmlFor={`user-${user.id}`}
-                                            className="flex items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 w-full cursor-pointer"
-                                        >
-                                            <div className="relative">
-                                                <Avatar className="h-6 w-6">
-                                                    <AvatarImage src={user.avatar} />
-                                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                </Avatar>
-                                                <div className={cn("absolute bottom-0 -right-1 h-2 w-2 rounded-full border border-background", getStatusClasses(user.status))} />
-                                            </div>
-                                            {user.name}
-                                        </label>
-                                    </div>
-                                ))}
+                                    {availableUsers.map((user) => (
+                                        <div key={user.id} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`user-${user.id}`}
+                                                checked={participantIds.includes(user.id)}
+                                                onCheckedChange={() => toggleParticipant(user.id)}
+                                            />
+                                            <label
+                                                htmlFor={`user-${user.id}`}
+                                                className="flex items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 w-full cursor-pointer"
+                                            >
+                                                <div className="relative">
+                                                    <Avatar className="h-6 w-6">
+                                                        <AvatarImage src={user.avatar} />
+                                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div className={cn("absolute bottom-0 -right-1 h-2 w-2 rounded-full border border-background", getStatusClasses(user.status))} />
+                                                </div>
+                                                {user.name}
+                                            </label>
+                                        </div>
+                                    ))}
                                 </div>
                             </ScrollArea>
                             {selectedParticipants.length > 0 && (

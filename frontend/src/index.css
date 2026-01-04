@@ -45,32 +45,28 @@
     --card-foreground: 0 0% 98%;
     --popover: 212 45% 9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 211 47% 32%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 212 45% 9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 212 45% 18%;
-    --muted-foreground: 215 14% 65%;
-    --accent: 211 47% 32%;
-    --accent-foreground: 0 0% 98%;
+    --primary: 263.4 70% 50.4%; /* Violet 600 */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 211 47% 22%;
-    --input: 211 47% 22%;
-    --ring: 211 47% 42%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 212 45% 9%;
-    --sidebar-foreground: 215 14% 65%;
-    --sidebar-primary: 211 47% 32%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 211 47% 22%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 211 47% 18%;
-    --sidebar-ring: 211 47% 32%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 263.4 70% 50.4%;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-background/60 backdrop-blur-md border-b border-white/10;
+  }
+  .glass-card {
+    @apply bg-secondary/40 backdrop-blur-sm border border-white/5;
   }
 }
 

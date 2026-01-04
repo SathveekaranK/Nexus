@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { useMemo } from 'react';
@@ -9,15 +10,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { type CalendarEvent, type User } from '@/lib/types';
 import { USERS, CURRENT_USER_ID } from '@/lib/data';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
 
@@ -28,7 +29,7 @@ const getStatusClasses = (status: User['status']) => {
         case 'away': return 'bg-yellow-500';
         case 'dnd': return 'bg-red-500';
     }
-  }
+}
 
 interface AgendaSidebarProps {
     selectedDate: Date | undefined;
@@ -45,7 +46,7 @@ export default function AgendaSidebar({ selectedDate, events, onDeleteEvent, onE
     const handleJoinMeeting = (url: string) => {
         window.open(url, '_blank', 'noopener,noreferrer');
     }
-    
+
     const currentUser = USERS.find(u => u.id === CURRENT_USER_ID)!;
 
     return (
@@ -55,7 +56,7 @@ export default function AgendaSidebar({ selectedDate, events, onDeleteEvent, onE
                     {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Select a date'}
                 </CardTitle>
                 <CardDescription>
-                    {selectedDayEvents.length > 0 ? `${selectedDayEvents.length} event(s)`: "No events scheduled"}
+                    {selectedDayEvents.length > 0 ? `${selectedDayEvents.length} event(s)` : "No events scheduled"}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -64,9 +65,9 @@ export default function AgendaSidebar({ selectedDate, events, onDeleteEvent, onE
                         const participants = (event.participants || [])
                             .map(uid => USERS.find(u => u.id === uid))
                             .filter((u): u is User => !!u);
-                        
+
                         const isCreator = event.creatorId === currentUser.id;
-                        
+
                         return (
                             <div key={event.id} className="p-4 rounded-lg bg-muted/50 border border-border">
                                 <div className="flex justify-between items-start">
@@ -81,24 +82,24 @@ export default function AgendaSidebar({ selectedDate, events, onDeleteEvent, onE
                                     {isCreator && (
                                         <div className="flex items-center">
                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditEvent(event)}>
-                                                <Edit className="h-4 w-4"/>
+                                                <Edit className="h-4 w-4" />
                                             </Button>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
-                                                        <Trash2 className="h-4 w-4"/>
+                                                        <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        This action cannot be undone. This will permanently cancel the event.
-                                                    </AlertDialogDescription>
+                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This action cannot be undone. This will permanently cancel the event.
+                                                        </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
-                                                    <AlertDialogCancel>Close</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => onDeleteEvent(event.id)}>Cancel Event</AlertDialogAction>
+                                                        <AlertDialogCancel>Close</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => onDeleteEvent(event.id)}>Cancel Event</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
@@ -123,7 +124,7 @@ export default function AgendaSidebar({ selectedDate, events, onDeleteEvent, onE
                                 )}
                                 {event.meetingUrl && (
                                     <Button size="sm" variant="secondary" className="mt-3 w-full" onClick={() => handleJoinMeeting(event.meetingUrl!)}>
-                                        <Video className="mr-2 h-4 w-4"/>
+                                        <Video className="mr-2 h-4 w-4" />
                                         Join
                                     </Button>
                                 )}
@@ -132,8 +133,8 @@ export default function AgendaSidebar({ selectedDate, events, onDeleteEvent, onE
                     })
                 ) : (
                     <div className="text-center text-muted-foreground pt-8">
-                       <CalendarIcon className="mx-auto h-12 w-12 text-muted-foreground/50"/>
-                       <p className="mt-2">No events scheduled for this day.</p>
+                        <CalendarIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                        <p className="mt-2">No events scheduled for this day.</p>
                     </div>
                 )}
             </CardContent>

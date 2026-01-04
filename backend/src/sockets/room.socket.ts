@@ -31,11 +31,22 @@ export const roomSocketHandler = (io: Server) => {
         socket.on('leave_room', async ({ roomId, userId, peerId }) => {
             try {
                 socket.leave(roomId);
-                await Room.findOneAndUpdate(
+                const room = await Room.findOneAndUpdate(
                     { roomId },
-                    { $pull: { members: userId } }
+                    { $pull: { members: userId } },
+                    { new: true } // Return updated doc
                 );
+
                 socket.to(roomId).emit('user_disconnected', peerId);
+
+                // Auto-delete if empty
+                if (room && room.members.length === 0) {
+                    await Room.deleteOne({ roomId });
+                    console.log(`Room ${roomId} deleted as it is now empty.`);
+                    // Optional: Emit to lobby to refresh list (if lobby listens to a global event)
+                    // io.emit('room_deleted', roomId); 
+                }
+
             } catch (error) {
                 console.error('Leave room error:', error);
             }

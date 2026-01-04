@@ -9,4 +9,23 @@ export const getUsers = async (req: Request, res: Response) => {
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
+}
+
+
+export const updateUserRole = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { role } = req.body; // Legacy single role from frontend
+
+        // Overwrite roles with single selected role. 
+        // To support multi-role via UI, we'd need a multi-select component.
+        // For now, this maintains compatibility.
+        const user = await User.findByIdAndUpdate(id, { roles: [role] }, { new: true }).select('-password');
+
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        res.json({ success: true, data: user });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };

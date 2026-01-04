@@ -5,6 +5,7 @@ export interface User {
   avatar: string;
   status: 'online' | 'offline' | 'away' | 'dnd';
   customStatus?: string;
+  roles?: string[]; // Updated for multi-role
 }
 
 export interface Workspace {
@@ -79,4 +80,17 @@ export interface ActivityItem {
   timestamp: string;
   contentPreview: string;
   isRead: boolean;
+}
+
+export interface Resource {
+  _id: string;
+  title: string;
+  type: 'snippet' | 'link' | 'doc' | 'env';
+  content: string;
+  description?: string;
+  tags: string[];
+  metadata?: Record<string, any>;
+  isPublic: boolean;
+  createdBy: User;
+  createdAt: string;
 }

@@ -21,6 +21,7 @@ export const register = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: 'User already exists' });
         }
 
+        // Default role logic can stay simple for now, 'member' is default in schema
         const user = new User({ name, email, password, avatar });
         await user.save();
 
@@ -30,7 +31,13 @@ export const register = async (req: Request, res: Response) => {
             success: true,
             data: {
                 token,
-                user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar }
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    avatar: user.avatar,
+                    roles: (user as any).roles // Return roles array
+                }
             }
         });
     } catch (error: any) {
@@ -54,7 +61,13 @@ export const login = async (req: Request, res: Response) => {
             success: true,
             data: {
                 token,
-                user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar }
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    avatar: user.avatar,
+                    roles: (user as any).roles // Return roles array
+                }
             }
         });
     } catch (error: any) {

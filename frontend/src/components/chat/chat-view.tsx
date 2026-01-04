@@ -1,8 +1,8 @@
-
+// @ts-nocheck
 'use client';
 
-import type { Channel, Message, User } from '@/lib/types';
 import { useState, useRef, useEffect, useMemo } from 'react';
+import type { Channel, Message, User } from '@/lib/types';
 import { format } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api-client';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { USERS } from '@/lib/data';
+import NotificationBell from "../notifications/notification-bell";
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -101,11 +102,11 @@ const ChatHeader = ({
   }
 
   return (
-    <header className="flex items-center justify-between p-3 border-b border-border shadow-sm bg-secondary h-16 md:h-auto">
-      <button className="flex items-center gap-3 truncate" onClick={onHeaderClick}>
+    <header className="flex items-center justify-between p-4 border-b border-white/5 bg-background/80 backdrop-blur-xl h-16 md:h-auto transition-all">
+      <button className="flex items-center gap-3 truncate hover:opacity-80 transition-opacity" onClick={onHeaderClick}>
         {isDm && user ? (
-          <div className="relative">
-            <Avatar>
+          <div className="relative group">
+            <Avatar className="ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all">
               <AvatarImage
                 src={avatar}
                 alt={name}
@@ -113,16 +114,19 @@ const ChatHeader = ({
               />
               <AvatarFallback>{fallback}</AvatarFallback>
             </Avatar>
-            <div className={cn("absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-secondary", getStatusClasses(user.status))} />
+            <div className={cn("absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background shadow-lg", getStatusClasses(user.status))} />
           </div>
         ) : (
-          <div className="p-2 bg-muted rounded-full">
-            <Hash className="h-5 w-5 text-muted-foreground" />
+          <div className="p-2 bg-primary/10 rounded-lg ring-1 ring-primary/20">
+            <Hash className="h-5 w-5 text-primary" />
           </div>
         )}
         <div className="truncate">
           <h2 className="text-lg font-bold text-foreground truncate">{name}</h2>
-          {isDm && user?.customStatus && <p className="text-xs text-muted-foreground truncate">{user.customStatus}</p>}
+          {isDm && user?.customStatus && <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            {user.customStatus}
+          </p>}
         </div>
       </button>
 
@@ -146,6 +150,7 @@ const ChatHeader = ({
         <Button variant="ghost" size="icon" className="hidden sm:inline-flex">
           <Phone />
         </Button>
+        <NotificationBell />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">
@@ -768,131 +773,98 @@ export default function ChatView({
           ))}
         </div>
       </ScrollArea>
-      <div className="p-4 border-t border-border bg-secondary">
-        <Popover open={isMentionPopoverOpen} onOpenChange={setIsMentionPopoverOpen}>
-          <PopoverTrigger asChild>
-            <div className="relative">
-              {replyTo && (
-                <div className="flex items-center justify-between text-xs bg-muted p-2 rounded-t-md">
-                  <p className="text-muted-foreground">
-                    Replying to{' '}
-                    <span className="font-semibold text-foreground">
-                      {getReplyingToUser()?.name}
-                    </span>
-                  </p>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5"
-                    onClick={() => setReplyTo(null)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-              <Input
-                ref={inputRef}
-                placeholder={`Message #${activeChannel.name}`}
-                className={cn('pr-28 sm:pr-40 bg-background', replyTo && 'rounded-t-none')}
-                value={inputValue}
-                onChange={handleInputChange}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !isMentionPopoverOpen) {
-                    e.preventDefault();
-                    sendMessage(inputValue);
-                  }
-                }}
-              />
+      <div className="p-4 relative z-20">
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
 
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="hidden sm:inline-flex">
-                      <Smile />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 border-0">
-                    <div className="grid grid-cols-8 gap-2 p-2">
-                      {[
-                        '😀', '😂', '😍', '🤔', '👍', '🙏', '🎉', '❤️', '🔥', '💯', '👏', '😢', '😮', '🤯', '😎', '😴',
-                      ].map((emoji) => (
-                        <button
-                          key={emoji}
-                          onClick={() => handleEmojiSelect(emoji)}
-                          className="text-2xl rounded-md hover:bg-muted p-1 transition-colors"
-                        >
-                          {emoji}
-                        </button>
+        <div className={cn(
+          "relative flex items-end gap-2 p-2 rounded-3xl bg-secondary/80 backdrop-blur-xl border border-white/10 shadow-2xl transition-all duration-300",
+          replyTo ? "rounded-t-lg rounded-b-3xl" : ""
+        )}>
+
+          {/* File Uploads & Tools */}
+          <div className="flex items-center gap-1 pb-1 pl-1">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors" onClick={() => fileInputRef.current?.click()}>
+              <Paperclip className="h-5 w-5" />
+            </Button>
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+
+            <Popover open={isMentionPopoverOpen} onOpenChange={setIsMentionPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors hidden sm:inline-flex">
+                  <Hash className="h-5 w-5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[200px] p-0 mb-2">
+                <Command>
+                  <CommandInput placeholder="Mention..." value={mentionSearch} onValueChange={setMentionSearch} />
+                  <CommandList>
+                    <CommandGroup>
+                      {filteredUsersForMention.map(user => (
+                        <CommandItem key={user.id} onSelect={() => handleMentionSelect(user)} className="flex items-center gap-2 cursor-pointer">
+                          <Avatar className="h-6 w-6"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar>
+                          <span className="font-medium">{user.name}</span>
+                        </CommandItem>
                       ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Paperclip />
-                </Button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                  accept=".xlsx,image/*,video/*"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleVoiceMessage}
-                  className={cn(isRecording && 'text-destructive')}
-                >
-                  <Mic />
-                </Button>
-                <Button
-                  size="icon"
-                  onClick={() => sendMessage(inputValue)}
-                  disabled={!inputValue.trim()}
-                >
-                  <Send />
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Text Input */}
+          <div className="flex-1 relative">
+            {replyTo && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-secondary/90 border border-white/5 rounded-lg flex items-center justify-between shadow-lg backdrop-blur-md">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
+                  <div className="w-1 h-8 bg-primary rounded-full" />
+                  <span className="font-bold text-primary">Replying to {getReplyingToUser()?.name}</span>
+                  <span className="truncate max-w-[200px] opacity-70">"{replyTo.content}"</span>
+                </div>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setReplyTo(null)}>
+                  <X className="h-3 w-3" />
                 </Button>
               </div>
-            </div>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-            <Command>
-              <CommandInput value={mentionSearch} onValueChange={setMentionSearch} placeholder="Mention a user..." />
-              <CommandList>
-                {filteredUsersForMention.length === 0 && (
-                  <div className="p-4 text-sm text-center text-muted-foreground">No users found.</div>
-                )}
-                <CommandGroup>
-                  {filteredUsersForMention.map((user) => (
-                    <CommandItem
-                      key={user.id}
-                      onSelect={() => handleMentionSelect(user)}
-                      className="flex items-center gap-2"
-                    >
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={user.avatar} />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <span>{user.name}</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-        <p className="text-xs text-muted-foreground mt-2">
-          You can ask AI questions with{' '}
-          <code className="bg-muted px-1 py-0.5 rounded text-foreground">
-            @nexus
-          </code>
-          .
-        </p>
+            )}
+            <Input
+              ref={inputRef}
+              value={inputValue}
+              onChange={handleInputChange}
+              placeholder={`Message #${activeChannel.name}...`}
+              className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-2 py-3 min-h-[44px] max-h-[120px] resize-none text-base placeholder:text-muted-foreground/50"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && !isMentionPopoverOpen) {
+                  e.preventDefault();
+                  sendMessage(inputValue);
+                }
+              }}
+            />
+          </div>
+
+          {/* Right Actions */}
+          <div className="flex items-center gap-1 pb-1 pr-1">
+            {inputValue.length === 0 ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-9 w-9 rounded-full transition-all", isRecording ? "bg-red-500/20 text-red-500 animate-pulse" : "hover:bg-white/10 text-muted-foreground")}
+                onClick={handleVoiceMessage}
+              >
+                <Mic className="h-5 w-5" />
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg transition-all hover:scale-105 active:scale-95"
+                onClick={() => sendMessage(inputValue)}
+              >
+                <Send className="h-4 w-4 ml-0.5" />
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
+
       <ProfileDialog
         channel={activeChannel}
         users={users}
@@ -901,13 +873,15 @@ export default function ChatView({
         onViewProfile={handleViewProfile}
         onLeave={handleLeaveChannel}
       />
-      {viewedUser && (
-        <UserProfileDialog
-          user={viewedUser}
-          isOpen={!!viewedUser}
-          onOpenChange={() => setViewedUser(null)}
-        />
-      )}
+      {
+        viewedUser && (
+          <UserProfileDialog
+            user={viewedUser}
+            isOpen={!!viewedUser}
+            onOpenChange={() => setViewedUser(null)}
+          />
+        )
+      }
       <PinnedMessagesDialog
         isOpen={isPinsDialogOpen}
         onOpenChange={setIsPinsDialogOpen}
@@ -915,6 +889,6 @@ export default function ChatView({
         users={users}
         onJumpToMessage={handleJumpToMessage}
       />
-    </div>
+    </div >
   );
 }

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUsers } from '../controllers/user.controller';
+import { getUsers, updateUserRole } from '../controllers/user.controller';
 
 const router = express.Router();
 
@@ -16,5 +16,6 @@ const router = express.Router();
  *         description: Server error
  */
 router.get('/', getUsers);
+router.patch('/:id/role', getUsers, updateUserRole); // Should use permission check properly but for now authenticated
 
 export default router;

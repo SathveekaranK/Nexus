@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Hash,
   LogOut,
+  BookOpen,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { CHANNELS } from '@/lib/data';
@@ -24,7 +25,7 @@ import { useDispatch } from 'react-redux';
 import { logout } from '@/services/auth/authSlice';
 import { AppDispatch } from '@/store/store';
 
-export type ViewType = 'dms' | 'channels' | 'ai-chat' | 'music' | 'calendar' | 'settings';
+export type ViewType = 'dms' | 'channels' | 'ai-chat' | 'music' | 'calendar' | 'resources' | 'settings';
 
 interface WorkspaceSwitcherProps {
   activeViewType: ViewType;
@@ -60,10 +61,15 @@ export default function WorkspaceSwitcher({
     },
   ] as const;
 
+
+
+  // ... (existing code)
+
   const toolItems = [
     { type: 'ai-chat' as ViewType, tooltip: 'Nexus AI', icon: <Bot />, isActive: activeViewType === 'ai-chat', href: '/ai-chat' },
     { type: 'music' as ViewType, tooltip: 'Music', icon: <Music />, isActive: activeViewType === 'music', href: '/music' },
     { type: 'calendar' as ViewType, tooltip: 'Calendar', icon: <Calendar />, isActive: activeViewType === 'calendar', href: '/calendar' },
+    { type: 'resources' as ViewType, tooltip: 'Library', icon: <BookOpen />, isActive: activeViewType === 'resources', href: '/resources' },
   ] as const;
 
   const footerItems = [
@@ -78,12 +84,15 @@ export default function WorkspaceSwitcher({
             variant="ghost"
             size="icon"
             className={cn(
-              'h-12 w-12 rounded-lg relative',
+              'h-12 w-12 rounded-lg relative transition-all duration-200 hover:scale-110 group',
               item.isActive &&
-              'bg-primary text-primary-foreground hover:bg-primary/90'
+              'bg-primary/20 text-primary hover:bg-primary/30 border-l-2 border-primary shadow-lg shadow-primary/10'
             )}
           >
             {item.icon}
+            {item.isActive && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full shadow-lg shadow-primary/50" />
+            )}
           </Button>
         </Link>
       </TooltipTrigger>
@@ -94,7 +103,7 @@ export default function WorkspaceSwitcher({
   );
 
   return (
-    <div className="flex flex-col items-center gap-2 p-2 bg-[hsl(var(--sidebar-background))] h-full border-r border-border">
+    <div className="flex flex-col items-center gap-2 p-2 bg-background/95 backdrop-blur-xl h-full border-r border-white/5">
       <TooltipProvider>
         {mainItems.map(renderTooltipButton)}
 
@@ -110,7 +119,7 @@ export default function WorkspaceSwitcher({
                 variant="ghost"
                 size="icon"
                 onClick={handleLogout}
-                className="h-12 w-12 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="h-12 w-12 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive hover:scale-110 transition-all"
               >
                 <LogOut />
               </Button>

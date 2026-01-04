@@ -13,6 +13,8 @@ export interface IMedia {
 export interface IRoom extends Document {
     roomId: string;
     hostId: string;
+    name: string;
+    genre: string;
     members: string[];
     currentMedia: IMedia;
     createdAt: Date;
@@ -29,6 +31,14 @@ const RoomSchema: Schema = new Schema({
     hostId: {
         type: String,
         required: true
+    },
+    name: {
+        type: String,
+        default: 'Music Room'
+    },
+    genre: {
+        type: String,
+        default: 'General'
     },
     members: [{
         type: String

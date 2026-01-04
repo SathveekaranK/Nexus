@@ -6,12 +6,15 @@ export const createRoom = async (req: Request | any, res: Response): Promise<voi
     try {
         const userId = req.user.userId;
         const roomId = uuidv4().slice(0, 8); // Short ID
+        const { name, genre } = req.body; // New: Accept name and genre
 
         const newRoom = new Room({
             roomId,
             hostId: userId,
+            name: name || `${userId.slice(0, 4)}'s Room`,
+            genre: genre || 'General',
             members: [userId],
-            currentSong: {
+            currentMedia: {
                 timestamp: Date.now()
             }
         });
@@ -19,6 +22,17 @@ export const createRoom = async (req: Request | any, res: Response): Promise<voi
         await newRoom.save();
 
         res.status(201).json({ success: true, data: newRoom });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getPublicRooms = async (req: Request, res: Response): Promise<void> => {
+    try {
+        // Find rooms created in the last 24 hours (cleanup logic ideally needed)
+        // Sort by newest first
+        const rooms = await Room.find().sort({ createdAt: -1 }).limit(20);
+        res.status(200).json({ success: true, data: rooms });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }

@@ -1,7 +1,19 @@
 import express from 'express';
-import { createRoom, getRoom } from '../controllers/room.controller';
+import { createRoom, getRoom, getPublicRooms } from '../controllers/room.controller';
 
 const router = express.Router();
+
+/**
+ * @swagger
+ * /api/rooms:
+ *   get:
+ *     summary: Get list of public music rooms
+ *     tags: [Rooms]
+ *     responses:
+ *       200:
+ *         description: List of rooms
+ */
+router.get('/', getPublicRooms);
 
 /**
  * @swagger

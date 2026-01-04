@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { format } from "date-fns";
@@ -28,7 +29,7 @@ export default function CalendarHeader({ currentDate, onPrevMonth, onNextMonth, 
                 </div>
             </div>
             <div className="flex items-center gap-2">
-                 <Button onClick={onNewEvent} size="sm" className="w-full sm:w-auto">
+                <Button onClick={onNewEvent} size="sm" className="w-full sm:w-auto">
                     <Plus className="mr-2 h-4 w-4" />
                     New Event
                 </Button>

@@ -13,6 +13,9 @@ import userRoutes from './routes/user.routes';
 import messageRoutes from './routes/message.routes';
 import channelRoutes from './routes/channel.routes';
 import roomRoutes from './routes/room.routes';
+import resourceRoutes from './routes/resource.routes';
+import aiRoutes from './routes/ai.routes';
+import roleRoutes from './routes/role.routes';
 import youtubeRoutes from './routes/youtube.routes';
 import { authMiddleware } from './middleware/auth.middleware';
 import { roomSocketHandler } from './sockets/room.socket';
@@ -29,6 +32,8 @@ const io = new Server(server, {
         credentials: true
     }
 });
+
+app.set('io', io);
 
 const PORT = process.env.PORT || 3001;
 
@@ -48,6 +53,9 @@ app.use('/api/users', authMiddleware, userRoutes); // Protect users
 app.use('/api/messages', authMiddleware, messageRoutes); // Protect messages
 app.use('/api/channels', authMiddleware, channelRoutes); // Protect channels
 app.use('/api/rooms', authMiddleware, roomRoutes); // Protect rooms
+app.use('/api/resources', authMiddleware, resourceRoutes); // Protect resources
+app.use('/api/ai', authMiddleware, aiRoutes); // AI Chat
+app.use('/api/roles', authMiddleware, roleRoutes); // Role Management
 app.use('/api/youtube', authMiddleware, youtubeRoutes); // Generic Media Search
 
 // Socket.io Handler
