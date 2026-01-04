@@ -20,8 +20,7 @@ export const register = createAsyncThunk(
     'auth/register',
     async (userData: any, { rejectWithValue }) => {
         try {
-            const response: any = await api.post('/auth/register', userData);
-            const data = response.data; // { token, user }
+            const data = await api.post('/auth/register', userData) as any;
             localStorage.setItem('token', data.token);
             return data;
         } catch (error: any) {
@@ -34,8 +33,7 @@ export const login = createAsyncThunk(
     'auth/login',
     async (credentials: any, { rejectWithValue }) => {
         try {
-            const response: any = await api.post('/auth/login', credentials);
-            const data = response.data; // { token, user }
+            const data = await api.post('/auth/login', credentials) as any;
             localStorage.setItem('token', data.token);
             return data;
         } catch (error: any) {
@@ -48,11 +46,8 @@ export const fetchMe = createAsyncThunk(
     'auth/fetchMe',
     async (_, { rejectWithValue }) => {
         try {
-            const response: any = await api.get('/auth/me'); // returns { success: true, data: user } based on interceptor logic?
-            // Wait, my interceptor returns response.data
-            // Backend sends { success: true, data: user }
-            // So response here IS { success: true, data: user }
-            return response.data;
+            const data = await api.get('/auth/me') as any;
+            return data;
         } catch (error: any) {
             localStorage.removeItem('token');
             return rejectWithValue(error.message);

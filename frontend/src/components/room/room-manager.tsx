@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { io, Socket } from 'socket.io-client';
 import { AppDispatch, RootState } from '@/store/store';
-import { addPeer, removePeer, updateMedia } from '@/services/room/roomSlice';
+import { updateMedia } from '@/services/room/roomSlice';
 
 let socket: Socket | null = null;
 
@@ -14,8 +14,8 @@ interface RoomManagerProps {
 
 const RoomManager = ({ children }: RoomManagerProps) => {
     const dispatch = useDispatch<AppDispatch>();
-    const { roomId } = useSelector((state: RootState) => state.room);
-    const { user } = useSelector((state: RootState) => state.auth);
+    const roomId = useSelector((state: RootState) => state.room?.roomId);
+    const user = useSelector((state: RootState) => state.auth?.user);
 
     useEffect(() => {
         if (!roomId || !user) return;
@@ -47,18 +47,8 @@ const RoomManager = ({ children }: RoomManagerProps) => {
             dispatch(updateMedia(media));
         });
 
-        // Voice Events
-        socket.on('user_connected', (newPeerId) => {
-            console.log('[RoomManager] Received user_connected event. Peer ID:', newPeerId);
-            if (newPeerId) {
-                dispatch(addPeer(newPeerId));
-                console.log('[RoomManager] Dispatched addPeer for:', newPeerId);
-            }
-        });
 
-        socket.on('user_disconnected', (peerId) => {
-            dispatch(removePeer(peerId));
-        });
+        // Voice Events handled by Agora (voice-chat.tsx)
 
         return () => {
             if (socket) {

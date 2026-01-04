@@ -1,201 +1,104 @@
-import { useEffect, useRef, useState } from 'react';
-import Peer from 'peerjs';
+import { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
-import { getSocket } from './room-manager';
-import { Mic, MicOff } from 'lucide-react';
+import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AgoraRTC, {
+    AgoraRTCProvider,
+    useJoin,
+    useLocalMicrophoneTrack,
+    usePublish,
+    useRemoteUsers,
+    useRemoteAudioTracks,
+} from "agora-rtc-react";
 
-export default function VoiceChat() {
-    const { voicePeers, roomId } = useSelector((state: RootState) => state.room);
-    const [myPeerId, setMyPeerId] = useState<string | null>(null);
+const APP_ID = import.meta.env.VITE_AGORA_APP_ID;
+
+// Inner Component handling the logic
+function VoiceChatInner() {
+    const roomId = useSelector((state: RootState) => state.room?.roomId);
+    const user = useSelector((state: RootState) => state.auth?.user);
     const [isMuted, setIsMuted] = useState(false);
-    const [status, setStatus] = useState<string>('Initializing...');
 
-    const myPeerRef = useRef<Peer | null>(null);
-    const myStreamRef = useRef<MediaStream | null>(null);
-    const peersRef = useRef<{ [key: string]: any }>({});
-    const audioElementsRef = useRef<{ [key: string]: HTMLAudioElement }>({}); // Keep track of audio elements
+    // 1. Get Local Mic
+    const { localMicrophoneTrack, isLoading: isMicLoading } = useLocalMicrophoneTrack(true);
 
+    // 2. Join Channel
+    // Channel name must be string.
+    const { isLoading: isJoining, isConnected, error: joinError } = useJoin(
+        {
+            appid: APP_ID,
+            channel: roomId || "lobby",
+            token: null, // Basic auth
+            uid: user?.id || null
+        },
+        !!roomId && !!APP_ID
+    );
+
+    // 3. Publish Mic
+    usePublish([localMicrophoneTrack]);
+
+    // 4. Remote Users & Audio
+    const remoteUsers = useRemoteUsers();
+    const { audioTracks } = useRemoteAudioTracks(remoteUsers);
+
+    // 5. Play Remote Audio
     useEffect(() => {
-        const initVoice = async () => {
-            console.log('[VoiceChat] Initializing...');
-            if (!roomId) return;
+        audioTracks.forEach((track) => track.play());
+    }, [audioTracks]);
 
-            // 1. Get Local Stream
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                console.log('[VoiceChat] Got local stream');
-                myStreamRef.current = stream;
-            } catch (err: any) {
-                console.error('[VoiceChat] Failed to get local stream:', err);
-                setStatus('Mic Error');
-                return;
-            }
-
-            // 2. Init PeerJS
-            // Use a random ID or let PeerJS generate one.
-            const peer = new Peer({
-                debug: 2, // Log warnings and errors
-                config: {
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:global.stun.twilio.com:3478' }
-                    ]
-                }
-            });
-
-            peer.on('open', (id) => {
-                console.log('[VoiceChat] PeerJS Open. My ID:', id);
-                setMyPeerId(id);
-                setStatus('Connected');
-
-                // 3. Emit Join Event (Wait for socket)
-                const checkSocket = setInterval(() => {
-                    const socket = getSocket();
-                    if (socket && socket.connected) {
-                        console.log('[VoiceChat] Socket available. Emitting join-voice for room:', roomId);
-                        socket.emit('join-voice', roomId, id);
-                        clearInterval(checkSocket);
-                    } else {
-                        console.log('[VoiceChat] Waiting for socket...');
-                    }
-                }, 500);
-
-                // Cleanup interval if component unmounts quickly
-                return () => clearInterval(checkSocket);
-            });
-
-            peer.on('error', (err) => {
-                console.error('[VoiceChat] PeerJS Error:', err);
-                setStatus('Connection Error');
-            });
-
-            // 4. Handle Incoming Calls
-            peer.on('call', (call) => {
-                console.log('[VoiceChat] Incoming call from:', call.peer);
-                // Answer with my stream
-                call.answer(myStreamRef.current!);
-
-                // Listen for their stream
-                call.on('stream', (userStream) => {
-                    console.log('[VoiceChat] Received stream from (Answer):', call.peer);
-                    playStream(call.peer, userStream);
-                });
-
-                call.on('error', (err) => {
-                    console.error('[VoiceChat] Call Error (Incoming):', err);
-                });
-            });
-
-            myPeerRef.current = peer;
-        };
-
-        initVoice();
-
-        return () => {
-            console.log('[VoiceChat] Cleanup');
-            myPeerRef.current?.destroy();
-            myStreamRef.current?.getTracks().forEach(track => track.stop());
-            // Cleanup audio elements
-            Object.values(audioElementsRef.current).forEach(audio => audio.remove());
-        };
-    }, [roomId]);
-
-    // 5. Handle Outgoing Calls (when new user joins)
-    useEffect(() => {
-        if (!myPeerRef.current || !myStreamRef.current || !myPeerId) return;
-
-        voicePeers.forEach((peerId) => {
-            // Don't call myself and don't call if already connected
-            if (peerId === myPeerId || peersRef.current[peerId]) return;
-
-            console.log('[VoiceChat] Initiating call to:', peerId);
-            const call = myPeerRef.current!.call(peerId, myStreamRef.current!);
-
-            if (call) {
-                peersRef.current[peerId] = call;
-
-                call.on('stream', (userStream) => {
-                    console.log('[VoiceChat] Received stream from (Caller):', peerId);
-                    playStream(peerId, userStream);
-                });
-
-                call.on('error', (err) => {
-                    console.error('[VoiceChat] Call Error (Outgoing):', err);
-                });
-
-                call.on('close', () => {
-                    console.log('[VoiceChat] Call closed:', peerId);
-                    removeStream(peerId);
-                    delete peersRef.current[peerId];
-                });
-            } else {
-                console.error('[VoiceChat] Failed to call:', peerId);
-            }
-        });
-
-    }, [voicePeers, myPeerId]);
-
-    // Helper: Play Stream
-    const playStream = (peerId: string, stream: MediaStream) => {
-        // Prevent duplicate audios
-        if (audioElementsRef.current[peerId]) return;
-
-        console.log('[VoiceChat] Playing stream for:', peerId);
-        const audio = document.createElement('audio');
-        audio.srcObject = stream;
-        audio.setAttribute('playsinline', 'true'); // Mobile iOS
-        audio.autoplay = true;
-        // audio.controls = true; // Debug: show controls if needed
-
-        // Robust play attempt
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(error => {
-                console.error(`[VoiceChat] Auto-play failed for ${peerId}:`, error);
-                // Interaction might be needed?
-            });
-        }
-
-        document.body.appendChild(audio); // Append to body (hidden)
-        audioElementsRef.current[peerId] = audio;
-    };
-
-    const removeStream = (peerId: string) => {
-        const audio = audioElementsRef.current[peerId];
-        if (audio) {
-            audio.srcObject = null;
-            audio.remove();
-            delete audioElementsRef.current[peerId];
+    // Mute Logic
+    const toggleMute = async () => {
+        if (localMicrophoneTrack) {
+            await localMicrophoneTrack.setMuted(!isMuted);
+            setIsMuted(!isMuted);
         }
     };
 
-    const toggleMute = () => {
-        if (myStreamRef.current) {
-            const enabled = !isMuted;
-            myStreamRef.current.getAudioTracks().forEach(track => track.enabled = !enabled); // Logic flip: enabled=true means NOT muted
-            setIsMuted(enabled);
-        }
-    };
+    // Connection Status Text
+    const statusText = isJoining ? "Joining..." : isConnected ? "Connected" : joinError ? "Error" : "Disconnected";
+    // Count only if connected
+    const activeListenerCount = isConnected ? remoteUsers.length : 0;
+
+    if (!APP_ID) {
+        return <div className="text-xs text-red-500 font-mono">Missing Agora APP ID</div>;
+    }
 
     return (
-        <div className="p-2 bg-secondary/50 rounded-lg flex items-center gap-3">
+        <div className="p-2 bg-secondary/50 rounded-lg flex items-center gap-3 min-w-[140px]">
             <div className="flex flex-col">
-                <span className="text-xs font-mono font-bold">Voice Chat</span>
-                <span className="text-[10px] text-muted-foreground">{status}</span>
-                {/* <span className="text-[9px] text-muted-foreground">{myPeerId ? myPeerId.slice(0, 6) : ''}</span> */}
+                <span className="text-xs font-mono font-bold flex items-center gap-1">
+                    Voice Chat
+                    {isConnected && <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
+                </span>
+                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    {isJoining ? <Loader2 className="h-3 w-3 animate-spin" /> : statusText}
+                    {isConnected && <span>({activeListenerCount + 1})</span>}
+                </span>
             </div>
 
             <Button
                 size="icon"
                 variant={isMuted ? "destructive" : "secondary"}
-                className={`h-8 w-8 transition-all ${isMuted ? 'animate-pulse' : ''}`}
+                className={`h-8 w-8 transition-all ${isMuted ? '' : 'ring-1 ring-green-500/50'}`}
                 onClick={toggleMute}
+                disabled={isMicLoading || !localMicrophoneTrack}
                 title={isMuted ? "Unmute Mic" : "Mute Mic"}
             >
                 {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
         </div>
+    );
+}
+
+// Wrapper to provide Client
+export default function VoiceChat() {
+    // Create client once using useMemo to prevent recreation on re-renders
+    const client = useMemo(() => AgoraRTC.createClient({ mode: "rtc", codec: "vp8" }), []);
+
+    return (
+        <AgoraRTCProvider client={client}>
+            <VoiceChatInner />
+        </AgoraRTCProvider>
     );
 }

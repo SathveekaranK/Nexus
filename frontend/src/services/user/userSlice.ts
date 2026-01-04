@@ -23,7 +23,7 @@ export const fetchUsers = createAsyncThunk('users/fetchUsers', async () => {
     const response: any = await api.get('/users');
 
     // Based on backend: { success: true, data: [...] }
-    const users = response.data;
+    const users = response;
 
     return users.map((user: any) => ({
         ...user,

@@ -20,7 +20,7 @@ export const fetchChannels = createAsyncThunk(
         try {
             // Backend endpoint: GET /api/channels
             const response: any = await api.get('/channels');
-            return response.data; // Expecting { success: true, data: [...] } -> intercepted to data
+            return response;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -33,7 +33,7 @@ export const createChannel = createAsyncThunk(
         try {
             // Backend endpoint: POST /api/channels
             const response: any = await api.post('/channels', channelData);
-            return response.data;
+            return response;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -45,7 +45,7 @@ export const addMemberToChannel = createAsyncThunk(
     async ({ channelId, userId }: { channelId: string; userId: string }, { rejectWithValue }) => {
         try {
             const response: any = await api.post(`/channels/${channelId}/members`, { userId });
-            return response.data; // Updated channel object
+            return response;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

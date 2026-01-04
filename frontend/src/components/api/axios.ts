@@ -25,7 +25,10 @@ api.interceptors.request.use(
 // Response interceptor for data extraction
 api.interceptors.response.use(
     (response) => {
-        // Return only the "data" part of the response if it exists
+        // Automatically unwrap successful wrapped responses
+        if (response.data && response.data.success && response.data.data !== undefined) {
+            return response.data.data;
+        }
         return response.data;
     },
     (error) => {

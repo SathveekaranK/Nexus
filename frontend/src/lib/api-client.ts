@@ -60,7 +60,7 @@ export const api = {
 
     // Rooms
     createRoom: (data?: { name?: string; genre?: string }) => apiFromAxios.post<{ roomId: string; members: string[]; currentMedia: any }>('/rooms/create', data) as unknown as Promise<{ roomId: string; members: string[]; currentMedia: any }>,
-    getRoom: (roomId: string) => apiFromAxios.get<{ roomId: string; members: string[]; currentSong: any }>(`/rooms/${roomId}`) as unknown as Promise<{ roomId: string; members: string[]; currentSong: any }>,
+    getRoom: (roomId: string) => apiFromAxios.get<{ roomId: string; members: string[]; currentMedia: any }>(`/rooms/${roomId}`) as unknown as Promise<{ roomId: string; members: string[]; currentMedia: any }>,
     // Resources
     getResources: async (type?: string, tag?: string) => {
         const params = new URLSearchParams();

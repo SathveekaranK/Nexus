@@ -2,7 +2,6 @@
 
 import type { Message, User } from "@/lib/types";
 import { useState, useRef, useEffect } from "react";
-import { format } from "date-fns";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Send, Bot, Loader2 } from "lucide-react";

@@ -5,7 +5,8 @@ export const roomSocketHandler = (io: Server) => {
     io.on('connection', (socket: Socket) => {
 
 
-        socket.on('join_room', async ({ roomId, userId, peerId }) => {
+
+        socket.on('join_room', async ({ roomId, userId }) => {
             try {
                 socket.join(roomId);
                 console.log(`User ${userId} joined room ${roomId}`);
@@ -17,12 +18,6 @@ export const roomSocketHandler = (io: Server) => {
                     { new: true }
                 );
 
-                // Only emit voice peer event if peerId is provided
-                if (peerId) {
-                    console.log(`Voice peer connected: ${peerId}`);
-                    socket.to(roomId).emit('user_connected', peerId);
-                }
-
                 // Send current room state (media) to the joining user
                 if (room && room.currentMedia) {
                     socket.emit('sync_media', room.currentMedia);
@@ -32,7 +27,7 @@ export const roomSocketHandler = (io: Server) => {
             }
         });
 
-        socket.on('leave_room', async ({ roomId, userId, peerId }) => {
+        socket.on('leave_room', async ({ roomId, userId }) => {
             try {
                 socket.leave(roomId);
                 const room = await Room.findOneAndUpdate(
@@ -40,11 +35,6 @@ export const roomSocketHandler = (io: Server) => {
                     { $pull: { members: userId } },
                     { new: true } // Return updated doc
                 );
-
-                // Only emit voice peer event if peerId is provided
-                if (peerId) {
-                    socket.to(roomId).emit('user_disconnected', peerId);
-                }
 
                 // Auto-delete if empty
                 if (room && room.members.length === 0) {
@@ -95,12 +85,6 @@ export const roomSocketHandler = (io: Server) => {
 
             await Room.findOneAndUpdate({ roomId }, { currentMedia: updatedMedia });
             io.to(roomId).emit('media_seeked', updatedMedia);
-        });
-
-        // --- Voice Chat Signaling ---
-        socket.on('join-voice', (roomId, peerId) => {
-            socket.join(roomId);
-            socket.to(roomId).emit('user-connected', peerId);
         });
 
         socket.on('disconnect', () => {

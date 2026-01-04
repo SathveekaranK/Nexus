@@ -24,9 +24,7 @@ export const fetchMessages = createAsyncThunk(
             else if (userId) url += `userId=${userId}`;
 
             const response: any = await api.get(url);
-            // Backend returns { success: true, data: [...] }
-            // Interceptor returns response.data which IS { success: true, data: [...] }
-            return response.data;
+            return response;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -38,8 +36,7 @@ export const sendMessage = createAsyncThunk(
     async (data: { recipientId?: string; channelId?: string; content: string }, { rejectWithValue }) => {
         try {
             const response: any = await api.post('/messages', data);
-            // Returns { success: true, data: message }
-            return response.data;
+            return response;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
