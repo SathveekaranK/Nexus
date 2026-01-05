@@ -7,8 +7,7 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     avatar: { type: String },
     status: { type: String, default: 'online' },
-    roles: [{ type: String, default: 'member' }], // Array of role names
-    // role: { type: String, default: 'member' }, // Deprecated, keeping for safety until migration complete
+    roles: [{ type: String, default: 'member' }],
     channels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Channel' }],
 }, { timestamps: true });
 

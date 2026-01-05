@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { io, Socket } from 'socket.io-client';
 import { AppDispatch, RootState } from '@/store/store';
-import { updateMedia } from '@/services/room/roomSlice';
+import { updateMedia, updateMembers } from '@/services/room/roomSlice';
 
 let socket: Socket | null = null;
 
@@ -26,11 +26,9 @@ const RoomManager = ({ children }: RoomManagerProps) => {
         });
 
         socket.on('connect', () => {
-            console.log('Socket connected:', socket?.id);
             socket?.emit('join_room', {
                 roomId,
-                userId: user.id
-                // Voice Join is handled separately by VoiceChat component
+                user // Send full user object (contains id, name, avatar, etc.)
             });
         });
 
@@ -47,10 +45,25 @@ const RoomManager = ({ children }: RoomManagerProps) => {
             dispatch(updateMedia(media));
         });
 
+        // Member Updates
+        socket.on('room_members_updated', (members) => {
+            dispatch(updateMembers(members));
+        });
+
 
         // Voice Events handled by Agora (voice-chat.tsx)
 
+        const handleBeforeUnload = () => {
+            if (socket) {
+                socket.emit('leave_room', { roomId, userId: user.id });
+                socket.disconnect();
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
         return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
             if (socket) {
                 socket.emit('leave_room', { roomId, userId: user.id });
                 socket.disconnect();

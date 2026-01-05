@@ -17,6 +17,7 @@ import AiChatPage from "@/pages/ai-chat";
 import CalendarPage from "@/pages/calendar";
 import ResourcesPage from "@/pages/resources";
 import SettingsPage from "@/pages/settings";
+import NotificationsPage from "@/pages/notifications";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 
@@ -80,6 +81,7 @@ export default function App() {
                                     <Route path="/calendar" element={<CalendarPage currentUser={currentUser} />} />
                                     <Route path="/resources" element={<ResourcesPage />} />
                                     <Route path="/settings" element={<SettingsPage currentUser={currentUser} />} />
+                                    <Route path="/notifications" element={<NotificationsPage />} />
                                 </Routes>
                             </MainLayout>
                         ) : (

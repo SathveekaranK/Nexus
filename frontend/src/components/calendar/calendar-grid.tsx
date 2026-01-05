@@ -5,6 +5,11 @@ import { startOfMonth, startOfWeek, addDays, getDaysInMonth, format, isSameMonth
 import { cn } from '@/lib/utils';
 import { type CalendarEvent } from '@/lib/types';
 
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { User } from '@/lib/types';
+
 interface CalendarGridProps {
     currentDate: Date;
     selectedDate: Date;
@@ -15,6 +20,7 @@ interface CalendarGridProps {
 export default function CalendarGrid({ currentDate, onDateClick, selectedDate, events }: CalendarGridProps) {
     const monthStart = startOfMonth(currentDate);
     const startDate = startOfWeek(monthStart);
+    const { users } = useSelector((state: RootState) => state.users);
 
     const days = [];
     let day = startDate;
@@ -25,6 +31,11 @@ export default function CalendarGrid({ currentDate, onDateClick, selectedDate, e
     }
 
     const getEventsForDay = (day: Date) => events.filter(event => isSameDay(event.date, day));
+
+    const getParticipantDetails = (participantIds: string[] | undefined) => {
+        if (!participantIds || !Array.isArray(participantIds)) return [];
+        return participantIds.map(id => users.find((u: User) => u.id === id)).filter(Boolean);
+    };
 
     return (
         <div className="grid grid-cols-7 border-t border-l border-border flex-1">
@@ -51,16 +62,31 @@ export default function CalendarGrid({ currentDate, onDateClick, selectedDate, e
                             {format(day, 'd')}
                         </span>
                         <div className="space-y-1 overflow-hidden">
-                            {dayEvents.slice(0, 2).map(event => (
-                                <div key={event.id} className={cn("text-[10px] md:text-xs p-0.5 md:p-1 rounded truncate", {
-                                    'bg-blue-900/50 text-blue-200': event.type === 'meeting',
-                                    'bg-green-900/50 text-green-200': event.type === 'event',
-                                    'bg-purple-900/50 text-purple-200': event.type === 'planning',
-                                })}>
-                                    <span className="hidden md:inline">{event.title}</span>
-                                    <span className="md:hidden">●</span>
-                                </div>
-                            ))}
+                            {dayEvents.slice(0, 2).map(event => {
+                                const participants = getParticipantDetails(event.participants);
+                                return (
+                                    <div key={event.id} className={cn("text-[10px] md:text-xs p-1 rounded truncate flex items-center justify-between gap-1", {
+                                        'bg-blue-900/50 text-blue-200': event.type === 'meeting',
+                                        'bg-green-900/50 text-green-200': event.type === 'event',
+                                        'bg-purple-900/50 text-purple-200': event.type === 'planning',
+                                    })}>
+                                        <span className="truncate flex-1">{event.title}</span>
+                                        {participants.length > 0 && (
+                                            <div className="flex -space-x-1.5 flex-shrink-0">
+                                                {participants.slice(0, 3).map((p: any) => (
+                                                    <Avatar key={p.id} className="h-4 w-4 border border-background ring-0">
+                                                        <AvatarImage src={p.avatar} />
+                                                        <AvatarFallback className="text-[8px]">{p.name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                ))}
+                                                {participants.length > 3 && (
+                                                    <span className="text-[8px] flex items-center justify-center h-4 w-4 rounded-full bg-background/50 text-foreground border border-background">+{participants.length - 3}</span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                             {dayEvents.length > 2 && (
                                 <p className="text-[10px] md:text-xs text-muted-foreground mt-1">+{dayEvents.length - 2} more</p>
                             )}

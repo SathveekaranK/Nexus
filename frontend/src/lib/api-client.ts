@@ -38,6 +38,7 @@ export const api = {
     // Messages
     getMessages: (channelId: string) => apiFromAxios.get<Message[]>(`/messages?channelId=${channelId}`) as unknown as Promise<Message[]>,
     createMessage: (data: any) => apiFromAxios.post<Message>('/messages', data) as unknown as Promise<Message>,
+    markMessageRead: (messageId: string) => apiFromAxios.post(`/messages/${messageId}/read`),
 
     // File Upload (Adapting old logic)
     uploadFile: async (file: File) => {
@@ -49,11 +50,32 @@ export const api = {
     },
 
     // AI Chat
-    chatAi: (query: string, contextMessages: string[]) => apiFromAxios.post<{ message: string }>('/ai/chat', { query, contextMessages }) as unknown as Promise<{ message: string }>,
+    chatAi: (query: string, context: string[]) => apiFromAxios.post('/ai/chat', { query, context }),
+    uploadExcel: (dataUri: string) => apiFromAxios.post('/ai/excel', { dataUri }),
+
+    getNotifications: (read?: boolean) => apiFromAxios.get(`/notifications${read !== undefined ? `?read=${read}` : ''}`),
+    markNotificationAsRead: (notificationId: string) => apiFromAxios.put(`/notifications/${notificationId}/read`),
+    markAllNotificationsAsRead: () => apiFromAxios.put('/notifications/read-all'),
+
+    createEvent: (eventData: any) => apiFromAxios.post('/events', eventData),
+    getEvents: (month?: string) => apiFromAxios.get(`/events${month ? `?month=${month}` : ''}`),
+    getEventById: (eventId: string) => apiFromAxios.get(`/events/${eventId}`),
+    updateEvent: (eventId: string, updates: any) => apiFromAxios.put(`/events/${eventId}`, updates),
+    deleteEvent: (eventId: string) => apiFromAxios.delete(`/events/${eventId}`),
+    addEventParticipant: (eventId: string, userId: string) => apiFromAxios.post(`/events/${eventId}/participants`, { userId }),
+    removeEventParticipant: (eventId: string, userId: string) => apiFromAxios.delete(`/events/${eventId}/participants/${userId}`),
+
+    assignUserRoles: (userId: string, roles: string[]) => apiFromAxios.post('/user-roles/assign', { userId, roles }),
+    getUserRoles: (userId: string) => apiFromAxios.get(`/user-roles/${userId}`),
+    removeUserRole: (userId: string, role: string) => apiFromAxios.delete('/user-roles/remove', { data: { userId, role } }),
 
     // Other legacy endpoints can be added here
-    uploadExcel: (dataUri: string) => apiFromAxios.post<{ message: string; success: boolean }>('/files/upload-excel', { dataUri }) as unknown as Promise<{ message: string; success: boolean }>,
     deleteMessage: (messageId: string) => apiFromAxios.delete(`/messages/${messageId}`) as unknown as Promise<void>,
+    // Roles
+    getRoles: () => apiFromAxios.get<{ _id: string; name: string; permissions: string[] }[]>('/roles') as unknown as Promise<{ _id: string; name: string; permissions: string[] }[]>,
+    createRole: (name: string, permissions: string[]) => apiFromAxios.post<{ _id: string; name: string; permissions: string[] }>('/roles', { name, permissions }) as unknown as Promise<{ _id: string; name: string; permissions: string[] }>,
+    deleteRole: (id: string) => apiFromAxios.delete(`/roles/${id}`) as unknown as Promise<void>,
+
     reactToMessage: (messageId: string, emoji: string) => apiFromAxios.post(`/messages/${messageId}/reactions`, { emoji }) as unknown as Promise<void>,
     pinMessage: (messageId: string) => apiFromAxios.post(`/messages/${messageId}/pin`) as unknown as Promise<void>,
     addSong: (roomId: string, song: any) => apiFromAxios.post(`/music/${roomId}/songs`, song) as unknown as Promise<any>,

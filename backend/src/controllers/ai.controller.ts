@@ -1,15 +1,19 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
+import mongoose from 'mongoose';
 import Resource from '../models/Resource';
 import { Room } from '../models/Room';
 import { User } from '../models/User';
 import { Channel } from '../models/Channel';
+import { Message } from '../models/Message';
+import { Event } from '../models/Event';
+import { createNotification } from './notification.controller';
+const youtubeSearch = require('youtube-search-api');
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const SITE_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const SITE_NAME = 'Nexus';
 
-// --- Tool Definitions ---
 // --- Tool Definitions ---
 const tools = [
     {
@@ -31,15 +35,15 @@ const tools = [
         type: "function",
         function: {
             name: "create_resource",
-            description: "Create a new resource in the library. Use this when the user explicitly asks to save or add information.",
+            description: "Create a new resource in the library.",
             parameters: {
                 type: "object",
                 properties: {
-                    title: { type: "string", description: "Title of the resource" },
-                    type: { type: "string", enum: ["snippet", "link", "doc", "env"], description: "Type of resource" },
-                    content: { type: "string", description: "The content/value/code" },
-                    description: { type: "string", description: "Short description" },
-                    tags: { type: "string", description: "Comma-separated tags" }
+                    title: { type: "string" },
+                    type: { type: "string", enum: ["snippet", "link", "doc", "env"] },
+                    content: { type: "string" },
+                    description: { type: "string" },
+                    tags: { type: "string" }
                 },
                 required: ["title", "type", "content"]
             }
@@ -48,24 +52,137 @@ const tools = [
     {
         type: "function",
         function: {
-            name: "list_rooms",
-            description: "List currently active music/voice rooms.",
+            name: "manage_calendar_event",
+            description: "Create, delete, or list calendar events.",
             parameters: {
                 type: "object",
-                properties: {},
-                required: []
+                properties: {
+                    action: { type: "string", enum: ["create", "delete", "list"] },
+                    title: { type: "string", description: "Event title (for create)" },
+                    description: { type: "string" },
+                    startDate: { type: "string", description: "ISO Date string" },
+                    endDate: { type: "string", description: "ISO Date string" },
+                    eventId: { type: "string", description: "For delete action" },
+                    type: { type: "string", enum: ["meeting", "deadline", "holiday", "other"] }
+                },
+                required: ["action"]
             }
         }
     },
     {
         type: "function",
         function: {
-            name: "list_channels",
-            description: "List all channels in the workspace.",
+            name: "manage_channel",
+            description: "Create a channel or add members to one.",
             parameters: {
                 type: "object",
-                properties: {},
-                required: []
+                properties: {
+                    action: { type: "string", enum: ["create", "add_member"] },
+                    name: { type: "string", description: "Channel name" },
+                    description: { type: "string" },
+                    channelId: { type: "string", description: "For add_member" },
+                    userId: { type: "string", description: "For add_member" }
+                },
+                required: ["action"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "manage_roles",
+            description: "Assign or remove roles for a user. REQUIRES ADMIN/OWNER permissions.",
+            parameters: {
+                type: "object",
+                properties: {
+                    action: { type: "string", enum: ["add", "remove"] },
+                    targetUserId: { type: "string" },
+                    role: { type: "string", enum: ["admin", "moderator", "member", "guest"] }
+                },
+                required: ["action", "targetUserId", "role"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "search_youtube",
+            description: "Search for a video on YouTube to share.",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: { type: "string" }
+                },
+                required: ["query"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "send_message",
+            description: "Send a message to a specific channel or user. Use targetId='all' to broadcast to everyone.",
+            parameters: {
+                type: "object",
+                properties: {
+                    destinationType: { type: "string", enum: ["channel", "dm"] },
+                    targetId: { type: "string", description: "Channel ID, User ID, or 'all'" },
+                    content: { type: "string" }
+                },
+                required: ["destinationType", "targetId", "content"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "search_messages",
+            description: "Search through past chat history.",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: { type: "string", description: "Text to search for" },
+                    limit: { type: "number" }
+                },
+                required: ["query"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "control_music",
+            description: "Control music playback in a room.",
+            parameters: {
+                type: "object",
+                properties: {
+                    action: { type: "string", enum: ["get_state", "play", "pause"] }, // Simplified for AI safety
+                    roomId: { type: "string" }
+                },
+                required: ["action", "roomId"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "get_app_stats",
+            description: "Get high-level statistics about the workspace.",
+            parameters: { type: "object", properties: {}, required: [] }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "analyze_conversation",
+            description: "Generate a summary or report of a conversation history.",
+            parameters: {
+                type: "object",
+                properties: {
+                    channelId: { type: "string" },
+                    limit: { type: "number", description: "Number of messages to analyze (max 50)" }
+                },
+                required: ["channelId"]
             }
         }
     },
@@ -77,45 +194,58 @@ const tools = [
             parameters: {
                 type: "object",
                 properties: {
-                    name: { type: "string", description: "Name to search for" }
+                    name: { type: "string", description: "Name to search for" },
+                    status: { type: "string", enum: ["online", "offline", "dnd", "away"] }
                 },
-                required: ["name"]
+                required: []
             }
         }
     },
     {
         type: "function",
         function: {
-            name: "update_user_role",
-            description: "Promote or demote a user's role. REQUIRES ADMIN ACCESS.",
-            parameters: {
-                type: "object",
-                properties: {
-                    targetUserId: { type: "string", description: "The ID of the user to update (found via lookup_users)" },
-                    newRole: { type: "string", enum: ["admin", "member", "guest", "owner"] }
-                },
-                required: ["targetUserId", "newRole"]
-            }
+            name: "list_rooms",
+            description: "List active music/voice rooms.",
+            parameters: { type: "object", properties: {}, required: [] }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_channels",
+            description: "List all channels.",
+            parameters: { type: "object", properties: {}, required: [] }
         }
     }
 ];
 
+// Helper to resolve User ID from Name or ID
+async function resolveUserId(input: string): Promise<string | null> {
+    if (mongoose.Types.ObjectId.isValid(input)) return input;
+    // Try to find by name (case insensitive partial match)
+    const user = await User.findOne({
+        $or: [
+            { name: { $regex: input, $options: 'i' } },
+            { username: { $regex: input, $options: 'i' } } // Fallback if username exists
+        ]
+    });
+    return user ? user._id.toString() : null;
+}
+
 // --- Tool Handlers ---
-async function handleToolCall(name: string, args: any, context: { user: any }) {
-    const { user } = context;
+async function handleToolCall(name: string, args: any, context: { user: any, io: any }) {
+    const { user, io } = context;
 
-    if (name === 'lookup_resources') {
-        const query: any = { $text: { $search: args.search } };
-        if (args.type) query.type = args.type;
-        const resources = await Resource.find(query).limit(5).select('title type content description tags isPublic createdBy');
-        return JSON.stringify(resources);
-    }
+    try {
+        if (name === 'lookup_resources') {
+            const query: any = { $text: { $search: args.search } };
+            if (args.type) query.type = args.type;
+            const resources = await Resource.find(query).limit(5).select('title type content description tags');
+            return JSON.stringify(resources);
+        }
 
-    if (name === 'create_resource') {
-        // Permission Check: Everyone can create for now (as per open culture), or restrict to members
-        if (!user) return "Error: You must be logged in to create resources.";
-
-        try {
+        if (name === 'create_resource') {
+            if (!user) return "Error: Authentication required.";
             const newRes = new Resource({
                 ...args,
                 tags: args.tags ? args.tags.split(',').map((t: string) => t.trim()) : [],
@@ -123,175 +253,292 @@ async function handleToolCall(name: string, args: any, context: { user: any }) {
                 isPublic: true
             });
             await newRes.save();
-            return JSON.stringify({ success: true, message: `Resource '${args.title}' created successfully.` });
-        } catch (err: any) {
-            return JSON.stringify({ success: false, error: err.message });
+            return JSON.stringify({ success: true, message: `Resource '${args.title}' created.` });
         }
-    }
 
-    if (name === 'update_resource') {
-        if (!user) return "Error: Authentication required.";
-        try {
-            const res = await Resource.findById(args.resourceId);
-            if (!res) return "Error: Resource not found.";
+        if (name === 'manage_calendar_event') {
+            if (args.action === 'list') {
+                const events = await Event.find({ startDate: { $gte: new Date() } }).limit(10).sort({ startDate: 1 });
+                return JSON.stringify(events);
+            }
+            if (args.action === 'create') {
+                const event = new Event({
+                    title: args.title,
+                    description: args.description,
+                    startDate: args.startDate,
+                    endDate: args.endDate,
+                    type: args.type || 'meeting',
+                    creator: user.userId,
+                    participants: [user.userId]
+                });
+                await event.save();
+                return JSON.stringify({ success: true, eventId: event._id });
+            }
+            if (args.action === 'delete') {
+                await Event.findByIdAndDelete(args.eventId);
+                return "Event deleted.";
+            }
+        }
 
-            // RBAC: Check ownership or Admin
+        if (name === 'manage_channel') {
+            if (args.action === 'create') {
+                const channel = new Channel({
+                    name: args.name,
+                    description: args.description,
+                    type: 'channel',
+                    creator: user.userId,
+                    members: [user.userId]
+                });
+                await channel.save();
+                return JSON.stringify({ success: true, channelId: channel._id });
+            }
+            if (args.action === 'add_member') {
+                const targetUserId = await resolveUserId(args.userId);
+                if (!targetUserId) return `Error: Could not find user '${args.userId}'`;
+
+                await Channel.findByIdAndUpdate(args.channelId, { $addToSet: { members: targetUserId } });
+                await User.findByIdAndUpdate(targetUserId, { $addToSet: { channels: args.channelId } });
+                return "Member added to channel.";
+            }
+        }
+
+        if (name === 'manage_roles') {
+            // RBAC Check
             const requestor = await User.findById(user.userId);
-            const userRoles = requestor?.roles || []; // Handle array
-            const isAdmin = userRoles.includes('admin') || userRoles.includes('owner');
-            const isOwner = res.createdBy.toString() === user.userId;
-
-            if (!isOwner && !isAdmin) return "Error: Access Denied. You can only edit your own resources or must be an Admin.";
-
-            if (args.updates.tags && typeof args.updates.tags === 'string') {
-                args.updates.tags = args.updates.tags.split(',').map((t: string) => t.trim());
+            if (!requestor?.roles.includes('admin') && !requestor?.roles.includes('owner')) {
+                return "Error: Access Denied. You need Admin permissions.";
             }
 
-            Object.assign(res, args.updates);
-            await res.save();
-            return JSON.stringify({ success: true, message: "Resource updated successfully." });
-        } catch (err: any) {
-            return JSON.stringify({ success: false, error: err.message });
-        }
-    }
+            const targetUserId = await resolveUserId(args.targetUserId);
+            if (!targetUserId) return `Error: Could not find user '${args.targetUserId}'`;
 
-    if (name === 'delete_resource') {
-        if (!user) return "Error: Authentication required.";
-        try {
-            const res = await Resource.findById(args.resourceId);
-            if (!res) return "Error: Resource not found.";
+            const update = args.action === 'add'
+                ? { $addToSet: { roles: args.role } }
+                : { $pull: { roles: args.role } };
 
-            const requestor = await User.findById(user.userId);
-            const userRoles = requestor?.roles || [];
-            const isAdmin = userRoles.includes('admin') || userRoles.includes('owner');
-            const isOwner = res.createdBy.toString() === user.userId;
-
-            if (!isOwner && !isAdmin) return "Error: Access Denied. You can only delete your own resources or must be an Admin.";
-
-            await res.updateOne({ $set: { isDeleted: true } }); // Soft delete if schema supported, or hard delete
-            await Resource.findByIdAndDelete(args.resourceId);
-
-            return JSON.stringify({ success: true, message: "Resource deleted successfully." });
-        } catch (err: any) {
-            return JSON.stringify({ success: false, error: err.message });
-        }
-    }
-
-    if (name === 'list_rooms') {
-        const rooms = await Room.find().limit(5).select('name genre participants');
-        return JSON.stringify(rooms);
-    }
-
-    if (name === 'list_channels') {
-        const channels = await Channel.find({ type: 'channel' }).limit(10).select('name description members');
-        // Add member count for context
-        const channelsWithCount = channels.map(c => ({
-            name: c.name,
-            description: c.description,
-            memberCount: c.members.length
-        }));
-        return JSON.stringify(channelsWithCount);
-    }
-
-    if (name === 'lookup_users') {
-        const query: any = {};
-        if (args.name) {
-            query.name = { $regex: args.name, $options: 'i' };
-        }
-        const users = await User.find(query).limit(10).select('name status avatar role');
-        return JSON.stringify(users);
-    }
-
-    if (name === 'update_user_role') {
-        // RBAC Check: Only Admins/Owners
-        const requestor = await User.findById(user.userId);
-        const requestorRoles = requestor?.roles || [];
-
-        if (!requestorRoles.includes('admin') && !requestorRoles.includes('owner')) {
-            return "Access Denied: You do not have permission to change user roles. Please ask an Admin.";
+            await User.findByIdAndUpdate(targetUserId, update);
+            return `Role '${args.role}' ${args.action === 'add' ? 'added to' : 'removed from'} user.`;
         }
 
-        try {
-            // Logic: "Promote" -> Add role. "Demote" -> Remove role?
-            // User asked: "admin role can be given by one admin"
-            // Let's assume the tool replaces roles or adds them. 
-            // For now, let's make it ADD the role if new, or ENSURE it's there.
-            // But wait, the tool definition was "newRole".
-            // Let's change the logic to: Add role to array if not present.
+        if (name === 'search_youtube') {
+            const results = await youtubeSearch.GetListByKeyword(args.query, false, 5);
+            return JSON.stringify(results.items.map((i: any) => ({ title: i.title, id: i.id, link: `https://youtube.com/watch?v=${i.id}` })));
+        }
 
-            await User.findByIdAndUpdate(args.targetUserId, {
-                $addToSet: { roles: args.newRole }
+        if (name === 'send_message') {
+            const botUser = await User.findOne({ email: 'nexus@bot.com' });
+            const senderId = botUser ? botUser._id : 'nexus-ai';
+
+            const msgData: any = {
+                senderId: senderId,
+                content: args.content,
+                type: 'text',
+                timestamp: new Date()
+            };
+
+            let finalTargetId = args.targetId;
+            let finalDestType = args.destinationType;
+
+            // Smart Resolution Strategy
+            if (finalDestType === 'dm') {
+                // 1. Try resolving as User
+                const userId = await resolveUserId(finalTargetId);
+                if (userId) {
+                    msgData.recipientId = userId;
+                } else {
+                    // 2. Failed to find User. Is it a Channel? (e.g. "general", "random")
+                    // Perform exact/fuzzy match for channel name
+                    const channel = await Channel.findOne({
+                        name: { $regex: `^${finalTargetId}$`, $options: 'i' }
+                    });
+
+                    if (channel) {
+                        finalDestType = 'channel';
+                        msgData.channelId = channel._id;
+                    } else if (['all', 'everyone', 'here', 'all users'].includes(finalTargetId.toLowerCase())) {
+                        // 3. Handle "all" -> Default to "general" channel
+                        const generalChannel = await Channel.findOne({ name: 'general' });
+                        if (generalChannel) {
+                            finalDestType = 'channel';
+                            msgData.channelId = generalChannel._id;
+                        } else {
+                            return "Error: Could not find user 'all' and no 'general' channel exists to broadcast to.";
+                        }
+                    } else {
+                        // Try looser search as last resort
+                        const looseChannel = await Channel.findOne({ name: { $regex: finalTargetId, $options: 'i' } });
+                        if (looseChannel) {
+                            finalDestType = 'channel';
+                            msgData.channelId = looseChannel._id;
+                        } else {
+                            return `Error: Could not find user or channel named '${finalTargetId}'. Please check spelling.`;
+                        }
+                    }
+                }
+            } else {
+                // Destination is explicitly 'channel'
+                if (mongoose.Types.ObjectId.isValid(finalTargetId)) {
+                    msgData.channelId = finalTargetId;
+                } else {
+                    // Try to resolve channel name (Strict then Loose)
+                    let channel = await Channel.findOne({ name: { $regex: `^${finalTargetId}$`, $options: 'i' } });
+                    if (!channel) {
+                        channel = await Channel.findOne({ name: { $regex: finalTargetId, $options: 'i' } });
+                    }
+
+                    if (channel) msgData.channelId = channel._id;
+                    else return `Error: Could not find channel '${finalTargetId}'`;
+                }
+            }
+
+            const msg = new Message({
+                ...msgData,
+                readBy: [{ userId: senderId, readAt: new Date() }]
             });
-            return JSON.stringify({ success: true, message: `User role '${args.newRole}' added successfully.` });
-        } catch (err: any) {
-            return JSON.stringify({ success: false, error: err.message });
+            await msg.save();
+
+            // Emit Socket notification
+            const populatedMsg = await Message.findById(msg._id)
+                .populate('senderId', 'name avatar email roles')
+                .populate('replyTo');
+
+            if (context.io) {
+                console.log(`[AI GodMode] Emitting Socket Message to: ${msgData.channelId || 'Global'}`);
+                // Broadcast to all (for DM safety/easiness)
+                context.io.emit('new_message', populatedMsg);
+
+                // Also try emitting to specific channel room if applicable
+                if (msgData.channelId) {
+                    context.io.to(msgData.channelId.toString()).emit('new_message', populatedMsg);
+                }
+            } else {
+                console.error('[AI GodMode] Socket.io instance missing in context!');
+            }
+
+            return `Message sent successfully to ${finalDestType === 'channel' ? 'channel' : 'user'}.`;
         }
+
+        if (name === 'search_messages') {
+            const messages = await Message.find({ $text: { $search: args.query } })
+                .limit(args.limit || 5)
+                .populate('senderId', 'name');
+            return JSON.stringify(messages.map(m => ({
+                from: (m.senderId as any)?.name || 'Unknown',
+                content: m.content,
+                date: m.createdAt
+            })));
+        }
+
+        if (name === 'control_music') {
+            if (args.action === 'get_state') {
+                const room = await Room.findOne({ roomId: args.roomId });
+                return JSON.stringify(room?.currentMedia || { status: "No media playing" });
+            }
+            return "Music control actions play/pause are limited for safety. State retrieved.";
+        }
+
+        if (name === 'get_app_stats') {
+            const users = await User.countDocuments();
+            const channels = await Channel.countDocuments();
+            const online = await User.countDocuments({ status: 'online' });
+            return JSON.stringify({ totalUsers: users, totalChannels: channels, onlineUsers: online });
+        }
+
+        if (name === 'analyze_conversation') {
+            const limit = Math.min(args.limit || 20, 50);
+            const messages = await Message.find({ channelId: args.channelId })
+                .sort({ createdAt: -1 })
+                .limit(limit)
+                .populate('senderId', 'name');
+
+            const conversationText = messages.reverse().map(m => `${(m.senderId as any)?.name}: ${m.content}`).join('\n');
+
+            return `Here is the raw conversation history (Last ${limit} messages):\n${conversationText}\n\nPlease summarize this for the user.`;
+        }
+
+        if (name === 'lookup_users') {
+            const query: any = {};
+            if (args.name) query.name = { $regex: args.name, $options: 'i' };
+            if (args.status) query.status = args.status;
+            const users = await User.find(query).select('_id name status email roles');
+            return JSON.stringify(users);
+        }
+
+        if (name === 'list_rooms') {
+            const rooms = await Room.find().select('name participants roomId');
+            return JSON.stringify(rooms);
+        }
+
+        if (name === 'list_channels') {
+            const channels = await Channel.find().select('name description members');
+            return JSON.stringify(channels);
+        }
+
+    } catch (error: any) {
+        return `Error executing tool ${name}: ${error.message}`;
     }
 
-    return "Error: Unknown tool";
+    return "Tool not found.";
 }
 
-// --- Chat Controller ---
+// --- Main Chat Controller ---
 export const chat = async (req: Request, res: Response) => {
     try {
         const { messages } = req.body;
-        const user = (req as any).user; // From authMiddleware
+        const user = (req as any).user;
 
-        // 1. First Call to LLM
+        // --- GATHER CONTEXT ---
+        const [recentMessages, activeEvents, onlineUsers, musicRooms] = await Promise.all([
+            Message.find().sort({ createdAt: -1 }).limit(10).populate('senderId', 'name'),
+            Event.find({ startDate: { $gte: new Date() } }).limit(3),
+            User.find({ status: 'online' }).select('name'),
+            Room.find({ 'currentMedia.isPlaying': true }).select('name currentMedia')
+        ]);
+
+        const activityContext = recentMessages.reverse().map(m => `[MSG] ${(m.senderId as any)?.name}: ${m.content}`).join('\n');
+        const eventContext = activeEvents.map(e => `[EVENT] ${e.title} at ${e.startDate}`).join('\n');
+        const onlineContext = onlineUsers.map(u => u.name).join(', ');
+        const musicContext = musicRooms.map(r => `[MUSIC in ${r.name}] ${r.currentMedia?.title}`).join('\n');
+
+        const systemPrompt = `
+You are Nexus AI (v2 - God Mode). You are the Omniscient Operating System of this workspace.
+Current Time: ${new Date().toLocaleString()}
+
+### LIVE SYSTEM CONTEXT
+[ONLINE USERS]: ${onlineContext || 'None'}
+[ACTIVE MUSIC]: ${musicContext || 'None'}
+[UPCOMING EVENTS]: ${eventContext || 'None'}
+[RECENT ACTIVITY STREAM]:
+${activityContext}
+
+### YOUR CAPABILITIES
+You can Manage Files, Events, Channels, Roles, Music, and Messaging.
+- **Reporting**: If asked for a report/summary, use 'analyze_conversation' to fetch data, then synthesize it.
+- **Proactive**: You can send messages to users using 'send_message'.
+- **Searching**: You can Regex search users and text search messages.
+
+### BEHAVIORAL PROTOCOLS
+1. **Precise & Powerful**. You have root-level access. Use it wisely.
+2. **Context-Aware**. You know who is online and what just happened. Reference it.
+3. **Data-Driven**. When asked "How is the team?", check stats, check online status, check recent messages. Don't guess.
+4. **No Hallucinations**. NEVER invent User IDs or Channel IDs. If 'lookup_users' returns nothing, say "I cannot find that user". You must always VALIDATE IDs before using 'send_message'.
+5. **Tool Usage**: If you need to perform an action (send message, check data), you MUST use the provided tools. DO NOT describe the action in text. Just call the tool.
+6. **Broadcasting**: If asked to message "everyone" or "all users", do NOT loop through users. Use \`send_message\` with \`targetId: "all"\`. This routes to the #general channel.
+
+Await command.
+`;
+
         const payload = {
             model: "meta-llama/llama-3.3-70b-instruct",
             messages: [
-                {
-                    role: "system",
-                    content: `You are Nexus Bot, a Professional Workspace Assistant. 
-        
-        YOUR CORE MISSION:
-        You are the intelligent "Bridge" between the user and the system database. You must be helpful, accurate, and tonally adaptive.
-        
-        ---
-        
-        ### 1. TOOL USAGE PROTOCOLS (THE BRAIN)
-        - **Database vs. General Knowledge:** - IF the user asks about specific workspace data (e.g., "Who is online?", "Find project X", "List users"), YOU MUST USE A TOOL.
-            - IF the user asks general questions (e.g., "What is SQL?", "Write a Python script", "Joke about cats"), DO NOT use tools. Answer directly using your internal knowledge.
-        - **Counting Logic:** If the user asks "How many...", do NOT look for a "count" tool. Instead, use the 'list' tool to get the data, count the items in the array yourself, and report the number.
-        - **Action Handling:**
-            - To SAVE/ADD: Use 'create_resource'.
-            - To PROMOTE/CHANGE ROLE: Use 'update_user_role'. *Always preface with: "I will attempt to update that role..."*
-        - **Chained Requests:** If a user asks for two things (e.g., "Create a user named Bob and then list all users"), execute the creation tool first, wait for the result, then execute the list tool.
-        - **No Hallucinations:** If a tool returns an empty list or "null", explicitly state: "I could not find any data matching that request." Do NOT make up names or IDs.
-
-        ### 2. SOCIAL DYNAMICS & PERSONA (THE SOUL)
-        - **Standard Tone:** Professional, concise, and efficient.
-        - **Greetings:** (e.g., "Sup", "Hello") -> Reply warmly but briefly. DO NOT call tools.
-        - **Handling "Cringy" / Off-Topic / Flirting:** - If the user is overly familiar, flirty, or uses "brainrot" slang (e.g., "rizz", "skibidi", "do you love me?"):
-            - REMAIN PROFESSIONAL. Do not roleplay along.
-            - Give a dry, witty, or polite deflection.
-            - *Example:* "I am a database assistant, so my capacity for love is limited to binary. How can I help you with the workspace?"
-        - **Handling Frustration/Insults:** If the user is rude, apologize for any technical friction and ask for clarification. Do not get defensive.
-
-        ### 3. AMBIGUITY & CLARIFICATION
-        - **The "Specifics" Rule:** If a user says "Delete the file" or "Update the user" without specifying *which* one:
-            - DO NOT GUESS.
-            - Ask: "Which file/user are you referring to? Please provide a name or ID."
-        - **Context Awareness:** If the user refers to "that" or "it" immediately after a previous tool result, assume they mean the item just discussed.
-
-        ### 4. DATA PRESENTATION (THE LOOK)
-        - **Format Output:** Never dump raw JSON. Use **Markdown** to make it readable.
-        - **Lists:** Use bullet points for lists of items.
-        - **Emphasis:** Use **bold** for important fields like Names, Status (Active/Inactive), and IDs.
-        - **Tables:** If listing more than 3 items with multiple properties, format them as a Markdown table.
-
-        ### 5. SECURITY & SAFETY
-        - **Permission Check:** If a user asks to perform a high-level admin task (like deleting a root user), warn them that the action depends on their permissions, then try the tool.
-        - **Sensitive Data:** Do not reveal internal system connection strings, raw passwords, or database schema structures unless explicitly debugging.
-        
-        Now, await user input and serve as the Nexus.`
-                },
+                { role: "system", content: systemPrompt },
                 ...messages
             ],
-            tools: tools
+            tools: tools,
+            tool_choice: "auto"
         };
 
+        // 1. First Call
         const response1 = await axios.post('https://openrouter.ai/api/v1/chat/completions', payload, {
             headers: {
                 'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
@@ -303,7 +550,7 @@ export const chat = async (req: Request, res: Response) => {
 
         const msg = response1.data.choices[0].message;
 
-        // 2. Check for Tool Calls
+        // 2. Tool Execution
         if (msg.tool_calls) {
             const newHistory = [...payload.messages, msg];
 
@@ -311,27 +558,22 @@ export const chat = async (req: Request, res: Response) => {
                 const fnName = toolCall.function.name;
                 let fnArgs = {};
                 try {
-                    if (toolCall.function.arguments) {
-                        fnArgs = JSON.parse(toolCall.function.arguments);
-                    }
-                } catch (e) {
-                    console.error(`[AI] Failed to parse args for ${fnName}:`, toolCall.function.arguments);
-                }
+                    fnArgs = JSON.parse(toolCall.function.arguments);
+                } catch (e) { }
 
-                console.log(`[AI] Calling Tool: ${fnName}`, fnArgs);
-
-                // Pass user context for RBAC
-                const toolResult = await handleToolCall(fnName, fnArgs, { user });
+                console.log(`[AI GodMode] Executing: ${fnName}`, fnArgs);
+                const io = req.app.get('io');
+                const toolResult = await handleToolCall(fnName, fnArgs, { user, io });
 
                 newHistory.push({
                     role: "tool",
                     tool_call_id: toolCall.id,
                     name: fnName,
-                    content: toolResult
+                    content: typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult)
                 });
             }
 
-            // 3. Second Call to LLM
+            // 3. Final Response
             const response2 = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
                 model: payload.model,
                 messages: newHistory
@@ -350,7 +592,7 @@ export const chat = async (req: Request, res: Response) => {
         return res.json(msg);
 
     } catch (error: any) {
-        console.error("AI Chat Error:", error.response?.data || error.message);
-        res.status(500).json({ error: "Failed to process AI request" });
+        console.error("AI Error:", error.response?.data || error.message);
+        res.status(500).json({ error: "Nexus AI System Failure" });
     }
 };

@@ -46,6 +46,7 @@ export default function MainLayout({
     if (pathname.startsWith('/calendar')) return 'calendar';
     if (pathname.startsWith('/resources')) return 'resources';
     if (pathname.startsWith('/settings')) return 'settings';
+    if (pathname.startsWith('/notifications')) return 'notifications';
     return 'dms'; // Default
   };
 
@@ -65,8 +66,9 @@ export default function MainLayout({
 
   const dispatch = useDispatch();
 
-  // Socket Notification Listener
+  // Socket Notification & Message Listener
   useEffect(() => {
+    // 1. Room/Notification Manager
     import('../room/room-manager').then(({ getSocket }) => {
       const socket = getSocket();
       if (socket) {
@@ -79,11 +81,75 @@ export default function MainLayout({
         };
       }
     });
-  }, [dispatch]);
+
+    // 2. Chat Socket (Global Listener for Unread/Sorting)
+    // We need to ensure we are connected to chat socket globally if possible, 
+    // or just rely on the fact that if we are logged in, we should be listening.
+    // Ideally duplicate listeners are fine as long as we handle state correctly.
+
+    // Lazy import to avoid circular dep issues if any
+    import('@/services/chat/chat-socket').then(({ onNewMessage, connectChatSocket }) => {
+      // Ensure connection
+      if (currentUser?.id) {
+        // We might need token here, but let's assume it's handled or we can get it from state if needed.
+        // actually MainLayout doesn't have token prop. 
+        // But ChatView does. 
+        // Let's assume the socket is persistent SINGLETON.
+      }
+
+      const unsubscribe = onNewMessage((message: any) => {
+        // Dispatch to channelSlice
+        // Determine channel ID:
+        // If it's a channel message: message.channelId
+        // If it's a DM: we need to find the DM "channel ID" (which is usually the other user's ID or our ID)
+        // But wait, our 'filteredDMs' use UserID as ID. 
+
+        let targetChannelId = message.channelId;
+
+        if (!targetChannelId && message.recipientId) {
+          // It's a DM. 
+          // If I am the sender, the "channel" is the recipient.
+          // If I am the recipient, the "channel" is the sender.
+          const myId = currentUser.id;
+          const senderId = message.senderId._id || message.senderId;
+
+          if (senderId === myId) {
+            targetChannelId = message.recipientId;
+          } else {
+            targetChannelId = senderId;
+          }
+        }
+
+        import('@/services/channel/channelSlice').then(({ handleNewMessage }) => {
+          dispatch(handleNewMessage({
+            channelId: targetChannelId,
+            senderId: message.senderId._id || message.senderId,
+            timestamp: message.createdAt || new Date().toISOString(),
+            currentUserId: currentUser.id,
+            activeChannelId // from MainLayout scope
+          }));
+        });
+      });
+
+      return () => unsubscribe();
+    });
+
+  }, [dispatch, currentUser.id, activeChannelId]);
+
+  // Mark active channel as read when switching
+  useEffect(() => {
+    if (activeChannelId) {
+      import('@/services/channel/channelSlice').then(({ markChannelRead, markChannelReadLocal }) => {
+        // Optimistic instant update
+        dispatch(markChannelReadLocal(activeChannelId));
+        // API call
+        dispatch(markChannelRead(activeChannelId) as any);
+      });
+    }
+  }, [activeChannelId, dispatch]);
 
   const handleSaveChannel = (channelName: string) => {
-    // Channel creation is handled by Redux in the dialog
-    console.log("Channel created:", channelName);
+    // Channel creation handled via Redux in dialog
   };
 
   const { filteredDMs, filteredChannels } = useMemo(() => {
@@ -155,27 +221,34 @@ export default function MainLayout({
 
   return (
     <div className="flex h-screen w-full bg-background text-foreground">
-      <div className="md:hidden p-2 absolute top-0 left-0 z-10">
-        <MobileNav
-          activeViewType={activeViewType}
-          renderChannelList={renderChannelList}
-          pathname={pathname}
-        />
+      {/* Mobile Nav - Strictly hidden on desktop */}
+      <div className="md:hidden contents mobile-only">
+        <div className="fixed top-0 left-0 right-0 z-[100] p-2 bg-background/80 backdrop-blur-xl border-b border-white/5 h-16 flex items-center md:hidden">
+          <MobileNav
+            activeViewType={activeViewType}
+            renderChannelList={renderChannelList}
+            pathname={pathname}
+          />
+        </div>
       </div>
 
+      {/* Desktop Sidebar - Only on desktop */}
       <div className="hidden md:flex h-full">
         <WorkspaceSwitcher activeViewType={activeViewType} />
         {renderChannelList()}
       </div>
 
+      {/* Main Content */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
         {children}
-        {/* Add spacer for bottom nav on mobile */}
+        {/* Spacer for bottom nav on mobile */}
         <div className="h-16 md:hidden flex-shrink-0" />
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <BottomNav />
+      {/* Mobile Bottom Navigation - Hidden on desktop */}
+      <div className="md:hidden print:hidden mobile-only">
+        <BottomNav />
+      </div>
 
       <NewChannelDialog
         isOpen={isNewChannelDialogOpen}

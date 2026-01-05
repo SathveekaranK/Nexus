@@ -21,8 +21,16 @@ export const register = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: 'User already exists' });
         }
 
-        // Default role logic can stay simple for now, 'member' is default in schema
-        const user = new User({ name, email, password, avatar });
+        const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
+        const isAdmin = ADMIN_EMAIL && email === ADMIN_EMAIL;
+
+        const user = new User({
+            name,
+            email,
+            password,
+            avatar,
+            roles: isAdmin ? ['admin', 'member'] : ['member']
+        });
         await user.save();
 
         const token = jwt.sign({ userId: user._id }, FINAL_JWT_SECRET, { expiresIn: '7d' });
@@ -53,6 +61,13 @@ export const login = async (req: Request, res: Response) => {
         const user = await User.findOne({ email });
         if (!user || !(await (user as any).comparePassword(password))) {
             return res.status(401).json({ success: false, message: 'Invalid email or password' });
+        }
+
+        const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
+        const isAdmin = ADMIN_EMAIL && email === ADMIN_EMAIL;
+        if (isAdmin && !user.roles?.includes('admin')) {
+            user.roles = ['admin', 'member'];
+            await user.save();
         }
 
         const token = jwt.sign({ userId: user._id }, FINAL_JWT_SECRET, { expiresIn: '7d' });

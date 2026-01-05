@@ -6,12 +6,16 @@ export interface ChannelState {
     channels: Channel[];
     isLoading: boolean;
     error: string | null;
+    unreadCounts: Record<string, number>;
+    lastActivity: Record<string, string>;
 }
 
 const initialState: ChannelState = {
     channels: [],
     isLoading: false,
     error: null,
+    unreadCounts: {},
+    lastActivity: {},
 };
 
 export const fetchChannels = createAsyncThunk(
@@ -64,10 +68,46 @@ export const leaveChannel = createAsyncThunk(
     }
 );
 
+export const markChannelRead = createAsyncThunk(
+    'channels/markRead',
+    async (channelId: string) => {
+        try {
+            await api.post(`/channels/${channelId}/read`);
+            return channelId;
+        } catch (error: any) {
+            console.error('Failed to mark read:', error);
+            return channelId;
+        }
+    }
+);
+
 const channelSlice = createSlice({
     name: 'channels',
     initialState,
-    reducers: {},
+    reducers: {
+        handleNewMessage: (state, action) => {
+            const { channelId, senderId, timestamp, currentUserId, activeChannelId } = action.payload;
+
+            // Update last activity for sorting
+            if (channelId) {
+                state.lastActivity[channelId] = timestamp || new Date().toISOString();
+            }
+
+            // Increment unread count if:
+            // 1. It's not my own message
+            // 2. I am NOT currently looking at this channel
+            if (senderId !== currentUserId && channelId !== activeChannelId && channelId) {
+                state.unreadCounts[channelId] = (state.unreadCounts[channelId] || 0) + 1;
+            }
+        },
+        // Optimistic local update (called by MainLayout before API)
+        markChannelReadLocal: (state, action) => {
+            const channelId = action.payload;
+            if (channelId) {
+                state.unreadCounts[channelId] = 0;
+            }
+        }
+    },
     extraReducers: (builder) => {
         builder
             // Fetch
@@ -82,6 +122,16 @@ const channelSlice = createSlice({
                     id: c._id || c.id,
                     memberIds: c.members || c.memberIds
                 }));
+                // Map unread counts and last activity from backend
+                action.payload.forEach((c: any) => {
+                    const id = c._id || c.id;
+                    if (c.unreadCount !== undefined) {
+                        state.unreadCounts[id] = c.unreadCount;
+                    }
+                    if (c.lastMessageAt) {
+                        state.lastActivity[id] = c.lastMessageAt;
+                    }
+                });
             })
             .addCase(fetchChannels.rejected, (state, action) => {
                 state.isLoading = false;
@@ -112,8 +162,14 @@ const channelSlice = createSlice({
             .addCase(leaveChannel.fulfilled, (state, action) => {
                 const channelId = action.payload;
                 state.channels = state.channels.filter(c => c.id !== channelId);
+            })
+            // Mark Read
+            .addCase(markChannelRead.fulfilled, (state, action) => {
+                const channelId = action.payload;
+                if (channelId) state.unreadCounts[channelId] = 0;
             });
     },
 });
 
+export const { handleNewMessage, markChannelReadLocal } = channelSlice.actions;
 export default channelSlice.reducer;

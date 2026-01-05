@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 import { getSocket } from './room-manager';
@@ -27,11 +27,6 @@ export default function YouTubePlayer() {
             socket.emit('play_media', { roomId, media: currentMedia });
         }
     };
-
-    useEffect(() => {
-        console.log('YouTubePlayer rendering with URL:', currentMedia.url);
-        console.log('Extracted Video ID:', videoId);
-    }, [currentMedia.url, videoId]);
 
     if (!currentMedia.url || !videoId) {
         return (

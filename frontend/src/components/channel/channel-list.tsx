@@ -30,19 +30,31 @@ interface ChannelListProps {
   onSearchTermChange: (term: string) => void;
 }
 
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
+import { Badge } from '../ui/badge'; // Ensure Badge component exists or use simple span
+
 export default function ChannelList({
   listType,
   channels,
   users,
-  currentUser, // Added currentUser
+  currentUser,
   activeChannel,
   onNewChannel,
   searchTerm,
   onSearchTermChange,
 }: ChannelListProps) {
+
+  const { unreadCounts, lastActivity } = useSelector((state: RootState) => state.channels);
+
+  // Sorting Logic
+  const sortedChannels = [...channels].sort((a, b) => {
+    const timeA = lastActivity[a.id] ? new Date(lastActivity[a.id]).getTime() : 0;
+    const timeB = lastActivity[b.id] ? new Date(lastActivity[b.id]).getTime() : 0;
+    return timeB - timeA; // Descending (newest first)
+  });
+
   const getUserForDM = (channel: Channel) => {
-    // If we are chatting with ourselves, both IDs are the same.
-    // If chatting with others, one ID is ours, one is theirs.
     const otherUserId = channel.memberIds?.find((id) => id !== currentUser.id);
     const targetUserId = otherUserId || currentUser.id;
     return users.find((u) => u.id === targetUserId);
@@ -50,35 +62,45 @@ export default function ChannelList({
 
   const renderDMs = () => (
     <div className="p-3 pt-0">
-      <h3 className="text-xs font-bold uppercase text-muted-foreground mb-2">
-        Direct Messages
+      <h3 className="text-xs font-bold uppercase text-muted-foreground mb-2 flex justify-between items-center">
+        <span>Direct Messages</span>
+        {/* Optional: Total Unread for DMs */}
       </h3>
       <div className="flex flex-col gap-1">
-        {channels.map((channel) => {
+        {sortedChannels.map((channel) => {
           const user = getUserForDM(channel);
           if (!user) return null;
+          const unread = unreadCounts[channel.id] || 0;
+
           return (
             <Link key={channel.id} to={`/dms/${channel.id}`}>
               <Button
                 variant="ghost"
                 className={cn(
-                  'w-full justify-start gap-2 transition-all duration-200 hover:translate-x-1',
+                  'w-full justify-between gap-2 transition-all duration-200 hover:translate-x-1 pr-2',
                   activeChannel?.id === channel.id &&
                   'bg-primary/20 text-foreground border-l-2 border-primary shadow-lg shadow-primary/10'
                 )}
               >
-                <div className="relative group">
-                  <Avatar className="h-6 w-6 ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
-                    <AvatarImage
-                      src={user.avatar}
-                      alt={user.name}
-                      data-ai-hint="person portrait"
-                    />
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className={cn("absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background shadow-sm", getStatusClasses(user.status))} />
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <div className="relative group flex-shrink-0">
+                    <Avatar className="h-6 w-6 ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
+                      <AvatarImage
+                        src={user.avatar}
+                        alt={user.name}
+                        data-ai-hint="person portrait"
+                      />
+                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className={cn("absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background shadow-sm", getStatusClasses(user.status))} />
+                  </div>
+                  <span className="truncate">{channel.name}</span>
                 </div>
-                <span className="truncate">{channel.name}</span>
+                {unread > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    {unread > 99 ? '99+' : unread}
+                  </span>
+                )}
               </Button>
             </Link>
           );
@@ -103,21 +125,31 @@ export default function ChannelList({
         </Button>
       </div>
       <div className="flex flex-col gap-1">
-        {channels.map((channel) => (
-          <Link key={channel.id} to={`/channels/${channel.id}`}>
-            <Button
-              variant="ghost"
-              className={cn(
-                'w-full justify-start gap-2 transition-all duration-200 hover:translate-x-1 group',
-                activeChannel?.id === channel.id &&
-                'bg-primary/20 text-foreground border-l-2 border-primary shadow-lg shadow-primary/10'
-              )}
-            >
-              <Hash className="h-4 w-4 group-hover:text-primary transition-colors" />
-              {channel.name}
-            </Button>
-          </Link>
-        ))}
+        {sortedChannels.map((channel) => {
+          const unread = unreadCounts[channel.id] || 0;
+          return (
+            <Link key={channel.id} to={`/channels/${channel.id}`}>
+              <Button
+                variant="ghost"
+                className={cn(
+                  'w-full justify-between gap-2 transition-all duration-200 hover:translate-x-1 group pr-2',
+                  activeChannel?.id === channel.id &&
+                  'bg-primary/20 text-foreground border-l-2 border-primary shadow-lg shadow-primary/10'
+                )}
+              >
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <Hash className="h-4 w-4 group-hover:text-primary transition-colors flex-shrink-0" />
+                  <span className="truncate">{channel.name}</span>
+                </div>
+                {unread > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    {unread > 99 ? '99+' : unread}
+                  </span>
+                )}
+              </Button>
+            </Link>
+          )
+        })}
       </div>
     </div>
   );

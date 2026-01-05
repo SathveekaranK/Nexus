@@ -22,6 +22,7 @@ import {
   BellOff,
   LogOut,
   Pin,
+  MessageSquare,
 } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import MessageItem from './message-item';
@@ -49,10 +50,16 @@ import UserProfileDialog from '../user/user-profile-dialog';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import PinnedMessagesDialog from './pinned-messages-dialog';
 import AddMemberDialog from '../channel/add-member-dialog';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { AppDispatch } from '@/store/store';
+import { AppDispatch, RootState } from '@/store/store';
 import { leaveChannel } from '@/services/channel/channelSlice';
+import { fetchRoles } from '@/services/role/roleSlice';
+import { connectChatSocket, joinChannel, leaveChannel as leaveChatChannel, sendChatMessage, onNewMessage, onMessageSent, setupSocket, onUserStatusChange } from '@/services/chat/chat-socket';
+import { fetchMessages, addMessage, updateMessageStatus } from '@/services/message/messageSlice';
+import { fetchUsers, updateUserStatus } from '@/services/user/userSlice';
+import { fetchChannels } from '@/services/channel/channelSlice';
+
 
 
 const getStatusClasses = (status: User['status']) => {
@@ -61,6 +68,7 @@ const getStatusClasses = (status: User['status']) => {
     case 'offline': return 'bg-gray-400 border-background';
     case 'away': return 'bg-yellow-500';
     case 'dnd': return 'bg-red-500';
+    default: return 'bg-gray-400 border-background';
   }
 }
 
@@ -76,11 +84,13 @@ interface ChatViewProps {
 const ChatHeader = ({
   channel,
   users,
+  currentUser,
   onHeaderClick,
   onViewPins
 }: {
   channel: Channel;
   users: User[];
+  currentUser: User;
   onHeaderClick: () => void;
   onViewPins: () => void;
 }) => {
@@ -92,8 +102,8 @@ const ChatHeader = ({
   const [isSearchVisible, setIsSearchVisible] = useState(false);
 
   if (isDm) {
-    const otherUserId = channel.memberIds?.find((id) => id !== 'user-1');
-    user = users.find((u) => u.id === otherUserId);
+    const otherUserId = channel.memberIds?.find((id) => String(id) !== String(currentUser.id));
+    user = users.find((u) => String(u.id) === String(otherUserId));
     if (user) {
       name = user.name;
       avatar = user.avatar;
@@ -150,7 +160,9 @@ const ChatHeader = ({
         <Button variant="ghost" size="icon" className="hidden sm:inline-flex">
           <Phone />
         </Button>
-        <NotificationBell />
+        <div className="hidden">
+          <NotificationBell />
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">
@@ -183,6 +195,7 @@ const ChatHeader = ({
 const ProfileDialog = ({
   channel,
   users,
+  currentUser,
   isOpen,
   onOpenChange,
   onViewProfile,
@@ -190,13 +203,14 @@ const ProfileDialog = ({
 }: {
   channel: Channel;
   users: User[];
+  currentUser: User;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onViewProfile: (user: User) => void;
   onLeave?: () => void;
 }) => {
   const isDm = channel.type === 'dm';
-  const otherUserId = channel.memberIds?.find((id) => id !== 'user-1');
+  const otherUserId = channel.memberIds?.find((id) => id !== currentUser.id);
   const user = users.find((u) => u.id === otherUserId);
   const channelMembers = channel.memberIds
     ? users.filter((u) => channel.memberIds!.includes(u.id))
@@ -327,20 +341,38 @@ export default function ChatView({
 }: ChatViewProps) {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const token = useSelector((state: RootState) => state.auth?.token);
   const [messages, setMessages] = useState<Message[]>(initialMessages.map(m => ({
     ...m,
+    // Safely handle populated senderId from backend
+    senderId: typeof m.senderId === 'object' ? (m.senderId as any)._id : m.senderId,
     pinned: activeChannel.pinnedMessageIds?.includes(m.id)
   })));
 
   const [inputValue, setInputValue] = useState('');
   const { toast } = useToast();
 
+  // Initialize Socket Presence
+  useEffect(() => {
+    if (currentUser?.id) {
+      setupSocket(currentUser.id);
+    }
+  }, [currentUser?.id]);
+
+  // Listen for real-time status updates
+  useEffect(() => {
+    const unsubscribe = onUserStatusChange(({ userId, status }) => {
+      dispatch(updateUserStatus({ userId, status: status as any }));
+    });
+    return unsubscribe;
+  }, [dispatch]);
+
   const handleLeaveChannel = async () => {
     try {
       await dispatch(leaveChannel(activeChannel.id)).unwrap();
       toast({ title: 'Left channel successfully' });
       setIsProfileDialogOpen(false);
-      navigate('/dms'); // Default fallback after leaving
+      navigate('/dms');
     } catch (error: any) {
       toast({ title: 'Failed to leave channel', description: error, variant: 'destructive' });
     }
@@ -356,27 +388,119 @@ export default function ChatView({
   const [viewedUser, setViewedUser] = useState<User | null>(null);
   const [isPinsDialogOpen, setIsPinsDialogOpen] = useState(false);
 
-
   // Mention state
   const [isMentionPopoverOpen, setIsMentionPopoverOpen] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const mentionTriggerIndexRef = useRef(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Socket.IO Chat Integration - FULLY WORKING
+  useEffect(() => {
+    if (!token || !activeChannel?.id) return;
+
+    const socket = connectChatSocket(token);
+
+    // Join the channel/DM room
+    if (activeChannel.type === 'channel') {
+      joinChannel(activeChannel.id);
+    } else {
+      // For DMs, join with the actual user ID
+      const dmUserId = activeChannel.id.replace('dm-', '');
+      joinChannel(dmUserId);
+    }
+
+    // Listen for new messages from others
+    const unsubscribe = onNewMessage((message) => {
+      // Only add if not already in list (prevent duplicates)
+      setMessages((prev) => {
+        // 1. Exact ID check
+        if (prev.some(m => m.id === message._id || m.id === message.id)) return prev;
+
+        // 2. Optimistic Deduction (replace temporary local msg with confirmed server msg)
+        // Match by Sender + Content + isOptimistic (temp ID)
+        const optimisticIndex = prev.findIndex(m =>
+          m.content === message.content &&
+          m.senderId === (message.senderId?._id || message.senderId) &&
+          m.id.startsWith('msg-optimistic-')
+        );
+
+        const mappedMessage = {
+          ...message,
+          id: message._id || message.id,
+          senderId: message.senderId?._id || message.senderId,
+          timestamp: message.createdAt || new Date().toISOString(),
+          reactions: message.reactions || [],
+          attachments: message.attachments || [],
+          replyTo: typeof message.replyTo === 'object' ? (message.replyTo as any)._id : message.replyTo,
+        };
+
+        if (optimisticIndex !== -1) {
+          // Replace optimistic message
+          const newMessages = [...prev];
+          newMessages[optimisticIndex] = mappedMessage;
+          return newMessages;
+        }
+
+        return [...prev, mappedMessage];
+      });
+
+      // Sound effect (only for others)
+      if ((message.senderId?._id || message.senderId) !== currentUser.id) {
+        const audio = new Audio('/notification.mp3');
+        audio.play().catch(() => { });
+      }
+    });
+
+    // Listen for message sent confirmations (replace optimistic with real)
+    const unsubscribeSent = onMessageSent(({ tempId, message }) => {
+      setMessages((prev) => prev.map(m => {
+        if (m.id === tempId) {
+          return {
+            ...message,
+            id: message._id || message.id,
+            senderId: message.senderId?._id || message.senderId,
+            timestamp: message.createdAt || new Date().toISOString(),
+            reactions: message.reactions || [],
+            attachments: message.attachments || [],
+            // Normalize replyTo to string ID if it's populated
+            replyTo: typeof message.replyTo === 'object' ? (message.replyTo as any)._id : message.replyTo,
+          };
+        }
+        return m;
+      }));
+    });
+
+    return () => {
+      if (activeChannel.type === 'channel') {
+        leaveChatChannel(activeChannel.id);
+      } else {
+        const dmUserId = activeChannel.id.replace('dm-', '');
+        leaveChatChannel(dmUserId);
+      }
+      unsubscribe();
+      unsubscribeSent();
+    };
+  }, [activeChannel?.id, token]);
+
   useEffect(() => {
     setMessages(initialMessages.map(m => ({
       ...m,
-      pinned: activeChannel.pinnedMessageIds?.includes(m.id)
+      // Safely handle populated senderId from backend (fix for updates)
+      senderId: typeof m.senderId === 'object' ? (m.senderId as any)._id : m.senderId,
+      // Preserve populated sender data for fallback resolution
+      _populatedSender: typeof m.senderId === 'object' ? { ...(m.senderId as any), id: (m.senderId as any)._id } : undefined,
+      pinned: activeChannel.pinnedMessageIds?.includes(m.id),
+      // Normalize replyTo
+      replyTo: typeof m.replyTo === 'object' ? (m.replyTo as any)._id : m.replyTo,
     })));
-    setIsProfileDialogOpen(false);
   }, [initialMessages, activeChannel]);
-
 
   useEffect(() => {
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({
-        top: scrollAreaRef.current.scrollHeight,
-      });
+      const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
     }
   }, [messages]);
 
@@ -424,18 +548,36 @@ export default function ChatView({
     }, 0);
   };
 
-  const mentionableUsers = useMemo(() => {
+  // Use dynamic roles from Redux
+  const { roles } = useSelector((state: RootState) => state.roles);
+  useEffect(() => {
+    dispatch(fetchRoles());
+    // Also likely need to fetch users if not already? Passed as props currently.
+  }, [dispatch]);
+
+  const mentionableItems = useMemo(() => {
+    const userItems = users.filter((user) => user.id !== 'nexus-ai').map(u => ({ ...u, type: 'user' }));
+
     if (activeChannel.type === 'dm') {
       const otherUserId = activeChannel.memberIds?.find(id => id !== currentUser.id);
-      return users.filter(
+      return userItems.filter(
         (user) => user.id === otherUserId || user.id === currentUser.id
       );
     }
-    return users.filter((user) => user.id !== 'nexus-ai');
-  }, [activeChannel, users, currentUser.id]);
 
-  const filteredUsersForMention = mentionableUsers.filter(user =>
-    user.name.toLowerCase().includes(mentionSearch.toLowerCase())
+    // Map backend roles to suggestion items
+    const roleItems = roles.map((r: any) => ({
+      id: `role-${r.name}`, // prefix to avoid collision if needed, or just use name logic
+      name: r.name,
+      type: 'role',
+      description: `${r.permissions?.length || 0} permissions`
+    }));
+
+    return [...userItems, ...roleItems];
+  }, [activeChannel, users, currentUser.id, roles]);
+
+  const filteredMentions = mentionableItems.filter(item =>
+    item.name.toLowerCase().includes(mentionSearch.toLowerCase())
   );
 
   const sendMessage = async (
@@ -445,52 +587,43 @@ export default function ChatView({
     if (!content.trim()) return;
 
     const isAiQuery = content.startsWith('@nexus');
+    const tempId = `msg-optimistic-${Date.now()}`;
 
     const userMessage: Message = {
       content,
       senderId: currentUser.id,
-      channelId: activeChannel.id,
+      channelId: activeChannel.type === 'channel' ? activeChannel.id : undefined,
+      recipientId: activeChannel.type === 'dm' ? activeChannel.id.replace('dm-', '') : undefined,
       type: type,
       replyTo: replyTo?.id,
-      // Optimistic update fields
-      id: `msg-optimistic-${Date.now()}`,
-      timestamp: format(new Date(), 'p'),
+      id: tempId,
+      timestamp: new Date().toISOString(),
       reactions: [],
       attachments: []
-    } as any; // Cast for optimistic
+    } as any;
 
     // Optimistic UI update
     setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
     setReplyTo(null);
 
-    // Call prop if available (Redux dispatch)
-    if (onSendMessage) {
-      onSendMessage(content, type);
-    } else {
-      // Fallback to internal API call (for other pages if any)
-      try {
-        const savedMessage = await api.createMessage({
-          content,
-          channelId: activeChannel.id,
-          type,
-          replyTo: replyTo?.id
-        });
-        // Replace optimistic message with real one
-        setMessages((prev) => prev.map(m => m.id === userMessage.id ? savedMessage : m));
-      } catch (error) {
-        toast({ title: 'Failed to send message', variant: 'destructive' });
-        setMessages((prev) => prev.filter(m => m.id !== userMessage.id)); // Rollback
-      }
-    }
-
+    // Send via Socket.IO for instant delivery
+    sendChatMessage({
+      senderId: currentUser.id,
+      channelId: activeChannel.type === 'channel' ? activeChannel.id : undefined,
+      recipientId: activeChannel.type === 'dm' ? activeChannel.id.replace('dm-', '') : undefined,
+      content,
+      type,
+      replyTo: replyTo?.id,
+      tempId
+    });
 
     if (isAiQuery) {
       const botTypingMessage: Message = {
         id: `msg-typing-${Date.now()}`,
         senderId: 'nexus-ai',
         content: 'Nexus AI is thinking...',
-        timestamp: format(new Date(), 'p'),
+        timestamp: new Date().toISOString(),
         channelId: activeChannel.id,
         type: 'bot',
       };
@@ -510,7 +643,7 @@ export default function ChatView({
           id: `msg-bot-${Date.now()}`,
           senderId: 'nexus-ai',
           content: result.message,
-          timestamp: format(new Date(), 'p'),
+          timestamp: new Date().toISOString(),
           channelId: activeChannel.id,
           type: 'bot',
         } as any;
@@ -518,9 +651,7 @@ export default function ChatView({
         setMessages((prev) =>
           prev.filter((m) => m.id !== botTypingMessage.id).concat(botMessage)
         );
-        // Also persist bot message to DB ideally, but for now just UI. 
-        // Real bot flow should be: separate backend endpoint triggers bot, bot replies async.
-        // Here we just simulate.
+
         await api.createMessage({
           content: result.message,
           channelId: activeChannel.id,
@@ -531,7 +662,6 @@ export default function ChatView({
         setMessages((prev) => prev.filter((m) => m.id !== botTypingMessage.id));
         toast({ title: 'AI failed to respond', variant: 'destructive' });
       }
-
     }
   };
 
@@ -572,7 +702,7 @@ export default function ChatView({
           id: `msg-typing-${Date.now()}`,
           senderId: 'nexus-ai',
           content: `Nexus AI is analyzing the file...`,
-          timestamp: format(new Date(), 'p'),
+          timestamp: new Date().toISOString(),
           channelId: activeChannel.id,
           type: 'bot',
         };
@@ -586,7 +716,7 @@ export default function ChatView({
           id: `msg-bot-${Date.now()}`,
           senderId: 'nexus-ai',
           content: content,
-          timestamp: format(new Date(), 'p'),
+          timestamp: new Date().toISOString(),
           channelId: activeChannel.id,
           type: result.success ? 'bot' : 'text',
         };
@@ -653,6 +783,7 @@ export default function ChatView({
         m.id === messageId ? { ...m, content: newContent, edited: true } : m
       )
     );
+    api.updateMessage(messageId, { content: newContent }).catch(console.error);
   };
 
   const handleDeleteMessage = (messageId: string) => {
@@ -726,59 +857,64 @@ export default function ChatView({
   const handleJumpToMessage = (messageId: string) => {
     setIsPinsDialogOpen(false);
     const messageElement = document.getElementById(`message-${messageId}`);
-    if (messageElement && scrollAreaRef.current) {
-      const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-      if (viewport) {
-        const offsetTop = messageElement.offsetTop - viewport.getBoundingClientRect().top;
-        viewport.scrollTo({ top: offsetTop, behavior: 'smooth' });
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        // Highlight effect
-        messageElement.classList.add('bg-yellow-400/20', 'transition-all', 'duration-1000');
-        setTimeout(() => {
-          messageElement.classList.remove('bg-yellow-400/20');
-        }, 2000);
-      }
+      // Highlight effect
+      messageElement.classList.add('bg-yellow-400/20', 'transition-all', 'duration-1000');
+      setTimeout(() => {
+        messageElement.classList.remove('bg-yellow-400/20');
+      }, 2000);
     }
   };
-
 
   return (
     <div className="flex flex-col flex-1 h-full bg-background overflow-hidden">
       <ChatHeader
         channel={activeChannel}
         users={users}
+        currentUser={currentUser}
         onHeaderClick={() => setIsProfileDialogOpen(true)}
         onViewPins={() => setIsPinsDialogOpen(true)}
       />
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
         <div className="p-4 space-y-1">
-          {messages.map((msg) => (
-            <MessageItem
-              key={msg.id}
-              message={msg}
-              sender={
-                users.find((u) => u.id === msg.senderId) ||
-                USERS.find((u) => u.id === 'nexus-ai')!
-              }
-              currentUser={currentUser}
-              onUpdateMessage={handleUpdateMessage}
-              onDeleteMessage={handleDeleteMessage}
-              onReact={handleReactToMessage}
-              onReply={handleReplyToMessage}
-              onTogglePin={handleTogglePinMessage}
-              onViewProfile={handleViewProfile}
-              users={users}
-              allMessages={messages}
-            />
-          ))}
+          {messages.map((msg) => {
+            // Robust Sender Resolution: Users List -> Current User -> Populated Data -> Nexus AI
+            const sender =
+              users.find((u) => u.id === msg.senderId) ||
+              (String(msg.senderId) === String(currentUser.id) ? currentUser : null) ||
+              (msg as any)._populatedSender ||
+              USERS.find((u) => u.id === 'nexus-ai')!;
+
+            return (
+              <MessageItem
+                key={msg.id}
+                message={msg}
+                sender={sender}
+                currentUser={currentUser}
+                onUpdateMessage={handleUpdateMessage}
+                onDeleteMessage={handleDeleteMessage}
+                onReact={handleReactToMessage}
+                onReply={handleReplyToMessage}
+                onJumpToMessage={handleJumpToMessage}
+                onTogglePin={handleTogglePinMessage}
+                onViewProfile={handleViewProfile}
+                users={users}
+                allMessages={messages}
+                roles={roles}
+                isDm={activeChannel.type === 'dm'}
+              />
+            );
+          })}
         </div>
       </ScrollArea>
       <div className="p-4 relative z-20">
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none -z-10" />
+
 
         <div className={cn(
-          "relative flex items-end gap-2 p-2 rounded-3xl bg-secondary/80 backdrop-blur-xl border border-white/10 shadow-2xl transition-all duration-300",
-          replyTo ? "rounded-t-lg rounded-b-3xl" : ""
+          "relative flex items-end gap-2 p-2 rounded-3xl bg-secondary/80 backdrop-blur-xl border border-white/10 shadow-2xl transition-all duration-300"
         )}>
 
           {/* File Uploads & Tools */}
@@ -794,15 +930,28 @@ export default function ChatView({
                   <Hash className="h-5 w-5" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-[200px] p-0 mb-2">
+              <PopoverContent className="w-64 p-0 bg-background/95 backdrop-blur-xl border-white/10" align="start">
                 <Command>
-                  <CommandInput placeholder="Mention..." value={mentionSearch} onValueChange={setMentionSearch} />
                   <CommandList>
-                    <CommandGroup>
-                      {filteredUsersForMention.map(user => (
-                        <CommandItem key={user.id} onSelect={() => handleMentionSelect(user)} className="flex items-center gap-2 cursor-pointer">
-                          <Avatar className="h-6 w-6"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar>
-                          <span className="font-medium">{user.name}</span>
+                    <CommandGroup heading="Suggestions">
+                      {filteredMentions.map((item: any) => (
+                        <CommandItem
+                          key={item.id}
+                          onSelect={() => handleMentionSelect(item)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          {item.type === 'role' ? (
+                            <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
+                              <Hash className="h-4 w-4 text-primary" />
+                            </div>
+                          ) : (
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={item.avatar} />
+                              <AvatarFallback>{item.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <span>{item.name}</span>
+                          {item.type === 'role' && <span className="ml-auto text-xs text-muted-foreground">Role</span>}
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -815,14 +964,16 @@ export default function ChatView({
           {/* Text Input */}
           <div className="flex-1 relative">
             {replyTo && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-secondary/90 border border-white/5 rounded-lg flex items-center justify-between shadow-lg backdrop-blur-md">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
-                  <div className="w-1 h-8 bg-primary rounded-full" />
-                  <span className="font-bold text-primary">Replying to {getReplyingToUser()?.name}</span>
-                  <span className="truncate max-w-[200px] opacity-70">"{replyTo.content}"</span>
+              <div className="absolute bottom-full left-0 right-0 mb-3 p-3 bg-secondary/95 border border-primary/20 rounded-2xl flex items-center justify-between shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-2 duration-200">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground truncate flex-1 min-w-0">
+                  <div className="w-1 h-8 bg-primary rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
+                  <div className="flex-1 truncate">
+                    <p className="font-bold text-primary mb-0.5">Replying to {users.find(u => u.id === replyTo.senderId)?.name || 'Someone'}</p>
+                    <p className="truncate opacity-80 italic">"{replyTo.content}"</p>
+                  </div>
                 </div>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setReplyTo(null)}>
-                  <X className="h-3 w-3" />
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-white/10" onClick={() => setReplyTo(null)}>
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
             )}
@@ -868,6 +1019,7 @@ export default function ChatView({
       <ProfileDialog
         channel={activeChannel}
         users={users}
+        currentUser={currentUser}
         isOpen={isProfileDialogOpen}
         onOpenChange={setIsProfileDialogOpen}
         onViewProfile={handleViewProfile}

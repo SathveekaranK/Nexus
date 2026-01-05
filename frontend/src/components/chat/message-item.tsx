@@ -29,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { USERS } from '@/lib/data';
+import { RoleBadges } from '../ui/role-badges';
 
 const getStatusClasses = (status: User['status']) => {
   switch (status) {
@@ -47,37 +48,31 @@ interface MessageItemProps {
   onDeleteMessage: (messageId: string) => void;
   onReact: (messageId: string, emoji: string) => void;
   onReply: (message: Message) => void;
+  onJumpToMessage?: (messageId: string) => void;
   onTogglePin: (message: Message) => void;
   onViewProfile: (user: User) => void;
   users: User[];
   allMessages: Message[];
   isDm?: boolean;
+  roles?: any[];
 }
 
-const ReactionPill = ({
-  emoji,
-  count,
-  reacted,
-  onClick,
-}: {
-  emoji: string;
-  count: number;
-  reacted: boolean;
-  onClick: () => void;
-}) => (
+// ReactionPill Component
+const ReactionPill = ({ emoji, count, reacted, onClick }: { emoji: string; count: number; reacted: boolean; onClick: () => void }) => (
   <button
     onClick={onClick}
     className={cn(
-      'px-2 py-0.5 border rounded-full text-sm flex items-center gap-1 transition-colors',
+      "px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-all hover:scale-110",
       reacted
-        ? 'bg-primary/20 border-primary'
-        : 'bg-muted border-muted-foreground/20 hover:bg-muted/80'
+        ? "bg-primary/20 border border-primary text-primary"
+        : "bg-muted border border-border hover:bg-muted/80"
     )}
   >
     <span>{emoji}</span>
-    <span>{count}</span>
+    <span className="font-semibold">{count}</span>
   </button>
 );
+
 
 export default function MessageItem({
   message,
@@ -87,11 +82,13 @@ export default function MessageItem({
   onDeleteMessage,
   onReact,
   onReply,
+  onJumpToMessage,
   onTogglePin,
   onViewProfile,
   users,
   allMessages,
   isDm: propsIsDm,
+  roles = [],
 }: MessageItemProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -102,7 +99,8 @@ export default function MessageItem({
   }
 
   const isBot = sender.id === 'nexus-ai';
-  const isOwnMessage = sender.id === currentUser.id;
+  // Robust string comparison for IDs
+  const isOwnMessage = String(sender.id) === String(currentUser.id);
   // Use prop if available, otherwise calculate
   const isDm = propsIsDm ?? (!!message.recipientId || (message.channelId && message.channelId.startsWith('dm-')));
 
@@ -140,19 +138,59 @@ export default function MessageItem({
     : null;
 
   const renderMessageWithMentions = (text: string) => {
-    const mentionableUsers = users.filter(u => u.id !== 'nexus-ai');
-    const mentionRegex = new RegExp(`@(${mentionableUsers.map(u => u.name).join('|')})`, 'g');
-    const parts = text.split(mentionRegex);
+    const mentionableUsers = users.filter((u) => u.id !== 'nexus-ai');
 
-    return parts.map((part, index) => {
-      const mentionedUser = mentionableUsers.find(u => u.name === part);
-      if (mentionedUser) {
-        const isCurrentUserMention = mentionedUser.id === currentUser.id;
-        return (
-          <span key={index} className={cn("font-semibold rounded px-1 cursor-pointer", isCurrentUserMention ? "bg-yellow-400/50 text-yellow-900" : "bg-primary/20 text-primary-foreground/80 hover:bg-primary/30")}>
-            @{part}
-          </span>
-        );
+    // Create a list of all lower-cased role names for easy matching
+    const knownRoleNames = roles.map(r => r.name.toLowerCase());
+    // Also include default system roles just in case
+    const allKnownRoles = new Set([...knownRoleNames, 'admin', 'moderator', 'member', 'vip', 'dj']);
+
+    // Split logic: capture spaces and common punctuation to isolate words
+    const tokens = text.split(/([ \t\n\r,.!?]+)/);
+
+    return tokens.map((part, index) => {
+      if (part.startsWith('@')) {
+        const potentialRole = part.substring(1);
+
+        // 1. Check User (exact match or case-insensitive)
+        // Clean only extremely unsafe chars for user matching if needed, but usually raw name is best for exact match
+        // strict matching for users to avoid false positives
+        const mentionedUser = mentionableUsers.find(u => u.name === potentialRole);
+
+        if (mentionedUser) {
+          const isCurrentUserMention = mentionedUser.id === currentUser.id;
+          return (
+            <span key={index} className={cn("font-semibold rounded px-1 cursor-pointer", isCurrentUserMention ? "bg-yellow-400/50 text-yellow-900" : "bg-primary/20 text-primary-foreground/80 hover:bg-primary/30")}>
+              {part}
+            </span>
+          );
+        }
+
+        // 2. Check Role (Case Insensitive, allow special chars)
+        // We check if the potentialRole (normalized) exists in our known roles
+        // We use the raw string first, but also try to trim punctuation from the end if the split wasn't perfect
+
+        // Remove trailing punctuation that might have been caught up if split didn't catch it
+        // The previous split /([ \t\n\r,.!?]+)/ puts punctuation in separate tokens usually, 
+        // but let's be safe.
+        const cleanRoleName = potentialRole.replace(/[.,!?]+$/, '');
+
+        if (allKnownRoles.has(cleanRoleName.toLowerCase())) {
+          return (
+            <span key={index} className="font-semibold rounded px-1 cursor-pointer bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30">
+              @{cleanRoleName}
+            </span>
+          );
+        }
+
+        // Also check if the raw part matched (without stripping) just in case
+        if (allKnownRoles.has(potentialRole.toLowerCase())) {
+          return (
+            <span key={index} className="font-semibold rounded px-1 cursor-pointer bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30">
+              {part}
+            </span>
+          );
+        }
       }
       return part;
     });
@@ -194,6 +232,7 @@ export default function MessageItem({
 
   return (
     <motion.div
+      id={`message-${message.id}`}
       layout
       initial={{ opacity: 0, y: 10, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -217,9 +256,11 @@ export default function MessageItem({
       )}
 
       <div className={cn("flex flex-col max-w-[75%] md:max-w-[60%]", isOwnMessage ? "items-end" : "items-start")}>
-        {/* Sender Name (Only for others in group chats) */}
         {!isOwnMessage && !isDm && (
-          <span className="text-[10px] text-muted-foreground ml-1 mb-1">{sender.name}</span>
+          <div className="flex items-center gap-1.5 ml-1 mb-1">
+            <span className="text-[10px] text-muted-foreground">{sender.name}</span>
+            <RoleBadges roles={sender.roles} />
+          </div>
         )}
 
         <div
@@ -232,10 +273,13 @@ export default function MessageItem({
         >
           {/* Reply Context */}
           {repliedToMessage && repliedToSender && (
-            <div className={cn(
-              "mb-2 text-xs border-l-2 pl-2 rounded py-1",
-              isOwnMessage ? "border-white/30 bg-white/10 text-white/80" : "border-primary/30 bg-primary/5 text-muted-foreground"
-            )}>
+            <div
+              className={cn(
+                "mb-2 text-xs border-l-2 pl-2 rounded py-1 cursor-pointer hover:bg-white/5 transition-colors",
+                isOwnMessage ? "border-white/30 bg-white/10 text-white/80" : "border-primary/30 bg-primary/5 text-muted-foreground"
+              )}
+              onClick={() => onJumpToMessage?.(repliedToMessage.id)}
+            >
               <span className="font-bold">{repliedToSender.name}</span>: {repliedToMessage.content.substring(0, 30)}...
             </div>
           )}
@@ -261,7 +305,9 @@ export default function MessageItem({
             "flex items-center gap-1 text-[10px] mt-1 opacity-70",
             isOwnMessage ? "justify-end text-white/70" : "justify-start text-muted-foreground"
           )}>
-            <span>{message.timestamp}</span>
+            <span>
+              {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
             {message.edited && <span>(edited)</span>}
             {message.pinned && <Pin className="h-3 w-3" />}
           </div>

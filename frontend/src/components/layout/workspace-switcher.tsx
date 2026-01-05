@@ -1,6 +1,8 @@
 
 'use client';
 
+import { disconnectChatSocket } from '@/services/chat/chat-socket';
+
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -18,6 +20,7 @@ import {
   Hash,
   LogOut,
   BookOpen,
+  Bell,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { CHANNELS } from '@/lib/data';
@@ -25,7 +28,7 @@ import { useDispatch } from 'react-redux';
 import { logout } from '@/services/auth/authSlice';
 import { AppDispatch } from '@/store/store';
 
-export type ViewType = 'dms' | 'channels' | 'ai-chat' | 'music' | 'calendar' | 'resources' | 'settings';
+export type ViewType = 'dms' | 'channels' | 'ai-chat' | 'music' | 'calendar' | 'resources' | 'settings' | 'notifications';
 
 interface WorkspaceSwitcherProps {
   activeViewType: ViewType;
@@ -40,6 +43,7 @@ export default function WorkspaceSwitcher({
   const dispatch = useDispatch<AppDispatch>();
 
   const handleLogout = () => {
+    disconnectChatSocket();
     dispatch(logout());
     window.location.href = '/login';
   };
@@ -69,6 +73,7 @@ export default function WorkspaceSwitcher({
     { type: 'ai-chat' as ViewType, tooltip: 'Nexus AI', icon: <Bot />, isActive: activeViewType === 'ai-chat', href: '/ai-chat' },
     { type: 'music' as ViewType, tooltip: 'Music', icon: <Music />, isActive: activeViewType === 'music', href: '/music' },
     { type: 'calendar' as ViewType, tooltip: 'Calendar', icon: <Calendar />, isActive: activeViewType === 'calendar', href: '/calendar' },
+    { type: 'notifications' as ViewType, tooltip: 'Notifications', icon: <Bell />, isActive: activeViewType === 'notifications', href: '/notifications' },
     { type: 'resources' as ViewType, tooltip: 'Library', icon: <BookOpen />, isActive: activeViewType === 'resources', href: '/resources' },
   ] as const;
 

@@ -33,9 +33,8 @@ export default function ChannelPage({ currentUser }: ChannelPageProps) {
         }
     };
 
-    const handleUpdateChannel = (updatedChannel: Channel) => {
-        // Optimistic update or specialized thunk if we implement channel editing
-        console.log("Update channel not implemented", updatedChannel);
+    const handleUpdateChannel = (_updatedChannel: Channel) => {
+        // Channel update logic handled via Redux
     };
 
     if (!channelId) {

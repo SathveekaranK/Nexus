@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Bell } from "lucide-react";
 import { Button } from "../ui/button";
 import {
@@ -11,20 +10,30 @@ import {
 } from "../ui/dropdown-menu";
 import { ScrollArea } from "../ui/scroll-area";
 import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "@/store/store";
-import { markAsRead, markAllAsRead } from "@/services/notification/notificationSlice";
+import { AppDispatch, RootState } from "@/store/store";
+import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "@/services/notification/notificationSlice";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
 
 export default function NotificationBell() {
     const { notifications, unreadCount } = useSelector((state: RootState) => state.notifications);
-    const dispatch = useDispatch();
+    const dispatch = useDispatch<AppDispatch>();
     const navigate = useNavigate();
 
+    useEffect(() => {
+        dispatch(fetchNotifications());
+    }, [dispatch]);
+
     const handleNotificationClick = (notification: any) => {
-        dispatch(markAsRead(notification.id));
-        if (notification.type === 'resource_added') {
+        dispatch(markNotificationAsRead(notification.id));
+
+        if (notification.channelId) {
+            navigate(`/channels/${notification.channelId}`);
+        } else if (notification.type === 'resource_added') {
             navigate('/resources');
+        } else if (notification.relatedEventId) {
+            navigate('/calendar');
         }
     };
 
@@ -42,7 +51,7 @@ export default function NotificationBell() {
                 <div className="flex items-center justify-between px-2 py-1.5">
                     <DropdownMenuLabel className="font-bold">Notifications</DropdownMenuLabel>
                     {unreadCount > 0 && (
-                        <Button variant="ghost" size="sm" className="h-6 text-xs text-primary" onClick={() => dispatch(markAllAsRead())}>
+                        <Button variant="ghost" size="sm" className="h-6 text-xs text-primary" onClick={() => dispatch(markAllNotificationsAsRead())}>
                             Mark all read
                         </Button>
                     )}
@@ -65,7 +74,9 @@ export default function NotificationBell() {
                             >
                                 <div className="flex items-center justify-between w-full">
                                     <span className={cn("font-medium text-sm", !notification.read && "text-primary")}>{notification.title}</span>
-                                    <span className="text-[10px] text-muted-foreground">{new Date(notification.timestamp).toLocaleTimeString()}</span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                        {notification.createdAt ? new Date(notification.createdAt).toLocaleTimeString() : ''}
+                                    </span>
                                 </div>
                                 <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
                             </DropdownMenuItem>

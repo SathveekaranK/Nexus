@@ -1,6 +1,5 @@
-// @ts-nocheck
-"use client";
-
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { format, isSameDay } from 'date-fns';
@@ -8,7 +7,6 @@ import { CalendarIcon, Clock, Edit, Trash2, Video } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { type CalendarEvent, type User } from '@/lib/types';
-import { USERS, CURRENT_USER_ID } from '@/lib/data';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,6 +26,7 @@ const getStatusClasses = (status: User['status']) => {
         case 'offline': return 'bg-gray-400 border-background';
         case 'away': return 'bg-yellow-500';
         case 'dnd': return 'bg-red-500';
+        default: return 'bg-gray-400 border-background';
     }
 }
 
@@ -39,6 +38,8 @@ interface AgendaSidebarProps {
 }
 
 export default function AgendaSidebar({ selectedDate, events, onDeleteEvent, onEditEvent }: AgendaSidebarProps) {
+    const { users, currentUser } = useSelector((state: RootState) => state.users);
+
     const selectedDayEvents = useMemo(() => {
         return selectedDate ? events.filter(event => isSameDay(event.date, selectedDate)) : [];
     }, [selectedDate, events]);
@@ -46,8 +47,6 @@ export default function AgendaSidebar({ selectedDate, events, onDeleteEvent, onE
     const handleJoinMeeting = (url: string) => {
         window.open(url, '_blank', 'noopener,noreferrer');
     }
-
-    const currentUser = USERS.find(u => u.id === CURRENT_USER_ID)!;
 
     return (
         <Card className="h-full w-full md:w-80 lg:w-96">
@@ -62,11 +61,15 @@ export default function AgendaSidebar({ selectedDate, events, onDeleteEvent, onE
             <CardContent className="space-y-4">
                 {selectedDayEvents.length > 0 ? (
                     selectedDayEvents.map(event => {
+                        // Participant mapping logic
                         const participants = (event.participants || [])
-                            .map(uid => USERS.find(u => u.id === uid))
+                            .map(uid => users.find((u: User) => u.id === uid))
                             .filter((u): u is User => !!u);
 
-                        const isCreator = event.creatorId === currentUser.id;
+                        const isCreator = event.creatorId === currentUser?.id;
+
+                        // Debugging: Log participants if empty (useful for dev check)
+                        // console.log('Event:', event.title, 'Participants IDs:', event.participants, 'Resolved:', participants);
 
                         return (
                             <div key={event.id} className="p-4 rounded-lg bg-muted/50 border border-border">

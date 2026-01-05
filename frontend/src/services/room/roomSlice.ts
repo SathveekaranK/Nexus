@@ -3,7 +3,7 @@ import { api } from '@/lib/api-client';
 
 export interface RoomState {
     roomId: string | null;
-    members: string[];
+    members: any[]; // Array of user objects with name, avatar, email, roles
     currentMedia: {
         url: string | null;
         title: string;

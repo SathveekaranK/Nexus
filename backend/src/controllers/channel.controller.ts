@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Channel } from '../models/Channel';
 import { User } from '../models/User';
+import { Message } from '../models/Message';
 
 export const createChannel = async (req: Request | any, res: Response): Promise<void> => {
     try {
@@ -36,7 +37,47 @@ export const getUserChannels = async (req: Request | any, res: Response): Promis
     try {
         const userId = req.user.userId;
         const channels = await Channel.find({ members: userId }).sort({ createdAt: -1 });
-        res.status(200).json({ success: true, data: channels });
+
+        // Get unread counts and last message timestamp
+        const channelsWithData = await Promise.all(channels.map(async (c) => {
+            const unreadCount = await Message.countDocuments({
+                channelId: c._id.toString(),
+                "readBy.userId": { $ne: userId }
+            });
+
+            const lastMessage = await Message.findOne({ channelId: c._id.toString() })
+                .sort({ createdAt: -1 })
+                .select('createdAt');
+
+            return {
+                ...c.toObject(),
+                unreadCount,
+                lastMessageAt: lastMessage ? lastMessage.createdAt : c.createdAt
+            };
+        }));
+
+        // Sort by lastMessageAt descending
+        channelsWithData.sort((a: any, b: any) => {
+            return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+        });
+
+        res.status(200).json({ success: true, data: channelsWithData });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const markRead = async (req: Request | any, res: Response): Promise<void> => {
+    try {
+        const userId = req.user.userId;
+        const { channelId } = req.params;
+
+        await Message.updateMany(
+            { channelId: channelId, "readBy.userId": { $ne: userId } },
+            { $addToSet: { readBy: { userId: userId, readAt: new Date() } } }
+        );
+
+        res.status(200).json({ success: true });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }

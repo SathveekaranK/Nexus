@@ -38,6 +38,7 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
   .dark {
     --background: 210 29% 13%;
     --foreground: 0 0% 98%;
@@ -45,7 +46,8 @@
     --card-foreground: 0 0% 98%;
     --popover: 212 45% 9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 263.4 70% 50.4%; /* Violet 600 */
+    --primary: 263.4 70% 50.4%;
+    /* Violet 600 */
     --primary-foreground: 210 40% 98%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -65,8 +67,90 @@
   .glass {
     @apply bg-background/60 backdrop-blur-md border-b border-white/10;
   }
+
   .glass-card {
     @apply bg-secondary/40 backdrop-blur-sm border border-white/5;
+  }
+
+  /* Smooth animations */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-in {
+    from {
+      transform: translateX(-10px);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulse-ring {
+    0% {
+      box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4);
+    }
+
+    70% {
+      box-shadow: 0 0 0 10px rgba(168, 85, 247, 0);
+    }
+
+    100% {
+      box-shadow: 0 0 0 0 rgba(168, 85, 247, 0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
+  .animate-slide-in {
+    animation: slide-in 0.2s ease-out;
+  }
+
+  .animate-pulse-ring {
+    animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Transition utilities */
+  .transition-smooth {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Mobile-first touch targets */
+  @media (max-width: 640px) {
+
+    button,
+    a,
+    [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
+  /* Force hide mobile elements on desktop */
+  @media (min-width: 768px) {
+    .mobile-only {
+      display: none !important;
+    }
+  }
+
+  /* Force hide desktop elements on mobile */
+  @media (max-width: 767px) {
+    .desktop-only {
+      display: none !important;
+    }
   }
 }
 
@@ -74,10 +158,23 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   .dark audio.filter-v2 {
     filter: invert(1) hue-rotate(180deg);
+  }
+
+  /* Optimize scrolling */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Smooth transitions globally */
+  button,
+  a {
+    transition: all 0.15s ease;
   }
 }

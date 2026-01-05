@@ -1,18 +1,18 @@
 // @ts-nocheck
-import { useState } from 'react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { Music as MusicIcon, Users, LogOut } from 'lucide-react';
+import { Music as MusicIcon, LogOut } from 'lucide-react';
 import RoomManager from '@/components/room/room-manager';
 import MediaSearch from '@/components/room/media-search';
 import YouTubePlayer from '@/components/room/youtube-player';
 import VoiceChat from '@/components/room/voice-chat';
+import ActiveUsersPanel from '@/components/music/active-users-panel';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/store/store';
 import { createRoom, joinRoom, leaveRoom } from '@/services/room/roomSlice';
 import { useToast } from '@/hooks/use-toast';
 import MusicLobby from '@/components/music/music-lobby';
+import { Separator } from '@/components/ui/separator';
 
 export default function MusicPage() {
     const dispatch = useDispatch<AppDispatch>();
@@ -53,11 +53,121 @@ export default function MusicPage() {
         }
     };
 
+    const handleLeaveRoom = async () => {
+        try {
+            await dispatch(leaveRoom()).unwrap();
+            toast({
+                title: "Left Room",
+                description: "You have left the music session.",
+            });
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to leave room.",
+                variant: "destructive"
+            });
+        }
+    };
+
     // If no room is joined, show the Lobby
     if (!roomId) {
         return (
-            <div className="h-full bg-gradient-to-br from-background via-background/95 to-secondary/20 flex flex-col items-center justify-center p-4">
-                <MusicLobby onJoinRoom={(id) => handleJoinRoom(id)} />
+            <div className="flex-1 flex flex-col h-full bg-background p-4 md:p-6 mt-16 md:mt-0">
+                <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-border gap-3 sm:gap-0">
+                    <div>
+                        <h1 className="text-2xl font-bold text-foreground">Music Room</h1>
+                        <p className="text-sm md:text-base text-muted-foreground">Enjoy music together in real-time</p>
+                    </div>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        {roomId && (
+                            <Button onClick={handleLeaveRoom} variant="destructive" className="flex-1 sm:flex-none min-h-[44px]">
+                                <LogOut className="mr-2 h-4 w-4" />
+                                Leave Room
+                            </Button>
+                        )}
+                    </div>
+                </header>
+
+                {!roomId ? (
+                    <div className="flex-1 flex flex-col h-full overflow-hidden">
+                        <MusicLobby onJoinRoom={(id) => handleJoinRoom(id)} />
+                    </div>
+                ) : (
+                    <div className="flex-1 flex flex-col lg:flex-row gap-4 md:gap-6 mt-4 md:mt-6 overflow-hidden">
+                        <div className="flex-1 flex flex-col gap-4">
+                            <Card className="flex-1">
+                                <CardHeader>
+                                    <CardTitle className="text-lg md:text-xl">Now Playing</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <YouTubePlayer />
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        <div className="w-full lg:w-96 flex flex-col gap-4">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                                        <Users className="h-5 w-5" />
+                                        Room Members ({members.length})
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <ScrollArea className="h-32 md:h-40">
+                                        <div className="space-y-2">
+                                            {members.map((member, index) => (
+                                                <div key={index} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                                        <Users className="h-4 w-4 text-primary" />
+                                                    </div>
+                                                    <span className="text-sm font-medium">User {index + 1}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="flex-1">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                                        <ListMusic className="h-5 w-5" />
+                                        Queue
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-2">
+                                        <Input
+                                            placeholder="Search YouTube..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleAddToQueue()}
+                                            className="min-h-[44px]"
+                                        />
+                                        <Button onClick={handleAddToQueue} className="w-full min-h-[44px]">
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Add to Queue
+                                        </Button>
+                                        <ScrollArea className="h-48 md:h-64">
+                                            <div className="space-y-2">
+                                                {queue.map((item, index) => (
+                                                    <div key={index} className="flex items-center gap-2 p-2 rounded-md bg-muted/50 hover:bg-muted">
+                                                        <MusicIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                                        <span className="text-xs md:text-sm flex-1 truncate">{item}</span>
+                                                    </div>
+                                                ))}
+                                                {queue.length === 0 && (
+                                                    <p className="text-sm text-muted-foreground text-center py-4">No songs in queue</p>
+                                                )}
+                                            </div>
+                                        </ScrollArea>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -65,37 +175,33 @@ export default function MusicPage() {
     // Room View
     return (
         <RoomManager>
-            <div className="h-full flex flex-col p-4 md:p-6 space-y-6 overflow-hidden bg-gradient-to-br from-background to-background/50">
+            <div className="h-full flex flex-col p-3 md:p-6 space-y-4 md:space-y-6 overflow-hidden bg-gradient-to-br from-background via-background to-primary/5 mt-16 md:mt-0">
                 {/* Header */}
-                <div className="flex items-center justify-between glass p-4 rounded-xl">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 glass p-3 md:p-4 rounded-xl">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-primary/20 rounded-lg">
+                        <div className="p-2 bg-primary/20 rounded-lg ring-2 ring-primary/10">
                             <MusicIcon className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold flex items-center gap-2">
-                                Music Lounge
-                                <span className="text-xs font-normal text-muted-foreground px-2 py-0.5 rounded-full bg-secondary">
+                            <h2 className="text-base md:text-lg font-bold flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                <span>Music Lounge</span>
+                                <span className="text-[10px] sm:text-xs font-normal text-muted-foreground px-2 py-0.5 rounded-full bg-secondary w-fit">
                                     {roomId}
                                 </span>
                             </h2>
-                            <p className="text-xs text-muted-foreground">
-                                {currentMedia.isPlaying ? 'Now Vibe-ing' : 'Chilling'}
+                            <p className="text-xs text-muted-foreground hidden sm:block">
+                                {currentMedia.isPlaying ? '🎵 Now Vibe-ing' : '💤 Chilling'}
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto">
                         <VoiceChat />
-                        <div className="h-8 w-px bg-border/50 mx-1" />
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary/50 rounded-full border border-white/5">
-                            <Users className="h-4 w-4 text-green-400" />
-                            <span className="text-sm font-medium">{members.length} Online</span>
-                        </div>
+                        <div className="h-8 w-px bg-border/50 mx-1 hidden sm:block" />
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="text-muted-foreground hover:text-destructive"
+                            className="text-muted-foreground hover:text-destructive flex-1 sm:flex-none"
                             onClick={() => dispatch(leaveRoom())}
                         >
                             <LogOut className="mr-2 h-4 w-4" /> Leave
@@ -104,34 +210,32 @@ export default function MusicPage() {
                 </div>
 
                 {/* Main Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 flex-1 min-h-0 overflow-hidden">
 
-                    {/* Left: Player & Visuals */}
-                    <div className="lg:col-span-2 space-y-6 flex flex-col">
+                    {/* Left: Player */}
+                    <div className="lg:col-span-2 flex flex-col overflow-hidden">
                         <Card className="overflow-hidden border-0 shadow-2xl bg-black/40 ring-1 ring-white/10 flex-1 relative group">
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 pointer-events-none" />
                             <YouTubePlayer />
                         </Card>
                     </div>
 
-                    {/* Right: Search & Queue */}
-                    <div className="lg:col-span-1 flex flex-col gap-4 h-full min-h-[400px]">
-                        <Card className="flex-1 glass border-white/5 p-4 flex flex-col gap-4">
-                            <div className="flex items-center gap-2 mb-2">
+                    {/* Right: Search & Active Users */}
+                    <div className="lg:col-span-1 flex flex-col gap-4 overflow-hidden">
+                        <Card className="glass-card border-white/5 p-3 md:p-4 flex flex-col gap-3">
+                            <div className="flex items-center gap-2">
                                 <div className="h-1 w-8 bg-primary rounded-full" />
                                 <h3 className="font-semibold text-sm">Find Music</h3>
                             </div>
-
                             <MediaSearch />
-
-                            <Separator className="bg-white/5" />
-                            <div className="flex-1 overflow-hidden flex flex-col">
-                                <h4 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Up Next</h4>
-                                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm italic border-2 border-dashed border-white/5 rounded-lg bg-white/5">
-                                    Queue system coming soon...
-                                </div>
-                            </div>
                         </Card>
+
+                        <Separator className="bg-white/5 lg:hidden" />
+
+                        {/* Active Users Panel - Show on desktop or when plenty of space */}
+                        <div className="flex-1 overflow-hidden min-h-[200px]">
+                            <ActiveUsersPanel />
+                        </div>
                     </div>
                 </div>
             </div>

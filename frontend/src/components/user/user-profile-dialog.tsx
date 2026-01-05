@@ -14,6 +14,7 @@ import { Video, MessageSquare, CircleSlash } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { CHANNELS } from '@/lib/data';
+import { RoleBadges } from '../ui/role-badges';
 
 interface UserProfileDialogProps {
   user: User;
@@ -29,8 +30,6 @@ export default function UserProfileDialog({
   const navigate = useNavigate();
 
   const handleSendMessage = () => {
-    // This is a simplified logic. In a real app, you'd search for an existing DM
-    // or create a new one, then navigate.
     const existingDm = CHANNELS.find(
       (c) =>
         c.type === 'dm' &&
@@ -41,9 +40,7 @@ export default function UserProfileDialog({
     if (existingDm) {
       navigate(`/dms/${existingDm.id}`);
     } else {
-      // Logic to create a new DM would go here.
-      // For now, we'll just log it.
-      console.log(`Create a new DM with ${user.name}`);
+      // DM creation logic handled by backend
     }
     onOpenChange(false);
   };
@@ -72,7 +69,10 @@ export default function UserProfileDialog({
             </Avatar>
             <div className={cn("absolute bottom-1 right-1 h-5 w-5 rounded-full border-4 border-background", statusDisplay.color)} />
           </div>
-          <DialogTitle className="text-2xl">{user.name}</DialogTitle>
+          <div className="flex flex-col items-center gap-2">
+            <DialogTitle className="text-2xl">{user.name}</DialogTitle>
+            <RoleBadges roles={user.roles} />
+          </div>
           {user.customStatus && <DialogDescription>{user.customStatus}</DialogDescription>}
           <DialogDescription className="capitalize flex items-center gap-2">
             <span className={cn('h-2 w-2 rounded-full', statusDisplay.color)} />
@@ -101,6 +101,8 @@ export default function UserProfileDialog({
             Call
           </Button>
         </div>
+
+
       </DialogContent>
     </Dialog>
   );

@@ -11,12 +11,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, User as UserIcon, Lock, Palette, Upload, Smile } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import RolesTab from './roles-tab';
 
 const getStatusClasses = (status: User['status']) => {
@@ -54,14 +48,7 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
     setIsEditingProfile(false);
   }
 
-  const handleStatusChange = (status: User['status']) => {
-    setUser({ ...user, status });
-    // In a real app, this would also be an API call.
-    toast({
-      title: "Status Updated",
-      description: `Your status is now ${status}.`,
-    });
-  }
+
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -87,20 +74,14 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
                     <AvatarImage src={user.avatar} data-ai-hint="person portrait" />
                     <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                   </Avatar>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <div className={cn(
-                        "absolute bottom-0 right-0 h-6 w-6 rounded-full border-4 border-card cursor-pointer",
-                        getStatusClasses(user.status)
-                      )} />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem onSelect={() => handleStatusChange('online')}>Online</DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => handleStatusChange('away')}>Away</DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => handleStatusChange('dnd')}>Do Not Disturb</DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => handleStatusChange('offline')}>Offline</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={user.avatar} data-ai-hint="person portrait" />
+                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className={cn(
+                    "absolute bottom-0 right-0 h-6 w-6 rounded-full border-4 border-card",
+                    getStatusClasses(user.status)
+                  )} />
 
                   {isEditingProfile && (
                     <Button size="icon" className="absolute -top-2 -left-2 h-7 w-7 rounded-full">

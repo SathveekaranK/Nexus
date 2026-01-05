@@ -2,14 +2,16 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { addMonths, subMonths } from 'date-fns';
+import { addMonths, subMonths, format } from 'date-fns';
 import { type CalendarEvent, type User } from '@/lib/types';
 import CalendarHeader from './calendar-header';
 import CalendarGrid from './calendar-grid';
 import AgendaSidebar from './agenda-sidebar';
 import NewEventDialog from './new-event-dialog';
-import { CALENDAR_EVENTS } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { useSelector, useDispatch } from 'react-redux';
+import { AppDispatch, RootState } from '@/store/store';
+import { fetchEvents, createEvent, updateEvent, deleteEvent } from '@/services/event/eventSlice';
 
 interface CalendarViewProps {
   currentUser: User;
@@ -18,10 +20,12 @@ interface CalendarViewProps {
 export default function CalendarView({ currentUser }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [events, setEvents] = useState<CalendarEvent[]>(CALENDAR_EVENTS);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [eventToEdit, setEventToEdit] = useState<CalendarEvent | null>(null);
   const { toast } = useToast();
+  const dispatch = useDispatch<AppDispatch>();
+
+  const { events: backendEvents, loading } = useSelector((state: RootState) => state.events);
 
   useEffect(() => {
     const now = new Date();
@@ -29,8 +33,27 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
     setSelectedDate(now);
   }, []);
 
-  const handlePrevMonth = () => currentDate && setCurrentDate(subMonths(currentDate, 1));
-  const handleNextMonth = () => currentDate && setCurrentDate(addMonths(currentDate, 1));
+  useEffect(() => {
+    if (currentDate) {
+      const month = format(currentDate, 'yyyy-MM');
+      dispatch(fetchEvents(month));
+    }
+  }, [currentDate, dispatch]);
+
+  const handlePrevMonth = () => {
+    if (currentDate) {
+      const newDate = subMonths(currentDate, 1);
+      setCurrentDate(newDate);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentDate) {
+      const newDate = addMonths(currentDate, 1);
+      setCurrentDate(newDate);
+    }
+  };
+
   const handleToday = () => {
     const now = new Date();
     setCurrentDate(now);
@@ -48,22 +71,43 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
   }
 
   const handleSaveEvent = async (newEventData: Omit<CalendarEvent, 'id' | 'creatorId'>) => {
-    const savedEvent: CalendarEvent = {
-      ...newEventData,
-      id: `ev-${Date.now()}`,
-      creatorId: currentUser.id
-    };
-    setEvents(prev => [...prev, savedEvent]);
-    toast({ title: 'Event created' });
+    try {
+      await dispatch(createEvent({
+        ...newEventData,
+        creatorId: currentUser.id,
+        participants: newEventData.participants || [currentUser.id],
+      })).unwrap();
+      toast({ title: 'Event created successfully' });
+      setIsNewEventDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: 'Failed to create event', description: error.message || 'Please try again', variant: 'destructive' });
+    }
   }
 
-  const handleUpdateEvent = (updatedEvent: CalendarEvent) => {
-    setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
-    setEventToEdit(null);
+  const handleUpdateEvent = async (updatedEvent: CalendarEvent) => {
+    try {
+      const eventId = updatedEvent.id || updatedEvent._id;
+      if (!eventId) return;
+
+      await dispatch(updateEvent({
+        eventId: eventId as string,
+        updates: updatedEvent,
+      })).unwrap();
+      toast({ title: 'Event updated successfully' });
+      setEventToEdit(null);
+      setIsNewEventDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: 'Failed to update event', description: error.message || 'Please try again', variant: 'destructive' });
+    }
   }
 
-  const handleDeleteEvent = (eventId: string | number) => {
-    setEvents(prev => prev.filter(e => e.id !== eventId));
+  const handleDeleteEvent = async (eventId: string | number) => {
+    try {
+      await dispatch(deleteEvent(eventId as string)).unwrap();
+      toast({ title: 'Event deleted successfully' });
+    } catch (error: any) {
+      toast({ title: 'Failed to delete event', description: error.message || 'Please try again', variant: 'destructive' });
+    }
   }
 
   const handleEditEvent = (event: CalendarEvent) => {
@@ -71,7 +115,9 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
     setIsNewEventDialogOpen(true);
   }
 
-  const userEvents = events.filter(e => e.participants?.includes(currentUser.id));
+  const userEvents = backendEvents.filter((e: any) =>
+    e.participants?.includes(currentUser.id) || e.creatorId === currentUser.id
+  );
 
   if (!currentDate || !selectedDate) {
     return <div className="flex-1 flex items-center justify-center">Loading calendar...</div>;
@@ -99,10 +145,16 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
             selectedDate={selectedDate}
             onDateClick={(date) => setSelectedDate(date)}
             events={userEvents}
+            loading={loading}
           />
         </div>
         <div className="w-full md:w-80 lg:w-96 flex-shrink-0">
-          <AgendaSidebar selectedDate={selectedDate} events={userEvents} onDeleteEvent={handleDeleteEvent} onEditEvent={handleEditEvent} />
+          <AgendaSidebar
+            selectedDate={selectedDate}
+            events={userEvents}
+            onDeleteEvent={handleDeleteEvent}
+            onEditEvent={handleEditEvent}
+          />
         </div>
       </div>
       <NewEventDialog

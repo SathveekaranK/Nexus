@@ -33,7 +33,7 @@ export default function MediaSearch() {
                 setResults(data.data);
             }
         } catch (error) {
-            console.error('Search failed:', error);
+            // Silent error handling
         } finally {
             setIsLoading(false);
         }

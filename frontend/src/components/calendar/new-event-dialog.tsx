@@ -21,6 +21,8 @@ import { Checkbox } from '../ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/services/store';
 
 const getStatusClasses = (status: User['status']) => {
     switch (status) {
@@ -47,7 +49,9 @@ export default function NewEventDialog({ isOpen, onOpenChange, onSave, onUpdate,
     const [meetingUrl, setMeetingUrl] = useState('');
     const [participantIds, setParticipantIds] = useState<string[]>([]);
 
-    const availableUsers = USERS.filter(u => u.id !== 'nexus-ai');
+    // Use Redux users
+    const { users } = useSelector((state: RootState) => state.users);
+    const availableUsers = users.filter((u: User) => u.id !== 'nexus-ai' && u.id !== 'user-1'); // Filter out bot/self if needed, currently filtering bot
 
     useEffect(() => {
         if (eventToEdit) {
@@ -67,24 +71,46 @@ export default function NewEventDialog({ isOpen, onOpenChange, onSave, onUpdate,
     }, [eventToEdit, isOpen]);
 
     const handleSave = () => {
-        if (title && (selectedDate || eventToEdit?.date)) {
+        const dateToUse = eventToEdit?.date || selectedDate;
+        if (title && dateToUse) {
+            // Combine date and time
+            // Combine date and time
+            const startDateTime = new Date(dateToUse);
+            // Paranoid check: ensure time is a string and not empty
+            const safeTime = (typeof time === 'string' && time.trim() !== '') ? time : '12:00 PM';
+            const [timePart, modifier] = safeTime.split(' ');
+            let [hours, minutes] = timePart.split(':').map(Number);
+
+            if (modifier === 'PM' && hours < 12) hours += 12;
+            if (modifier === 'AM' && hours === 12) hours = 0;
+
+            startDateTime.setHours(hours, minutes, 0, 0);
+
+            // Calculate end time based on duration (simple parsing)
+            const durationHours = parseInt(duration) || 1;
+            const endDateTime = new Date(startDateTime);
+            endDateTime.setHours(startDateTime.getHours() + durationHours);
+
             const eventData = {
-                date: eventToEdit?.date || selectedDate!,
+                startDate: startDateTime.toISOString(),
+                endDate: endDateTime.toISOString(),
                 title,
-                time,
-                duration,
+                description: '', // default
                 type: 'meeting',
                 meetingUrl,
                 participants: participantIds,
+                location: 'Online' // default
             };
 
             if (eventToEdit) {
+                // @ts-expect-error - id type
                 onUpdate({
                     ...eventData,
                     id: eventToEdit.id,
                     creatorId: eventToEdit.creatorId,
                 });
             } else {
+                // @ts-expect-error - id type
                 onSave(eventData);
             }
             onOpenChange(false);

@@ -1,5 +1,5 @@
 import express from 'express';
-import { createChannel, getUserChannels, addMember, leaveChannel } from '../controllers/channel.controller';
+import { createChannel, getUserChannels, addMember, leaveChannel, markRead } from '../controllers/channel.controller';
 
 const router = express.Router();
 
@@ -110,5 +110,6 @@ router.post('/:channelId/members', addMember);
  *         description: Server error
  */
 router.post('/:channelId/leave', leaveChannel);
+router.post('/:channelId/read', markRead);
 
 export default router;

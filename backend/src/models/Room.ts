@@ -41,7 +41,8 @@ const RoomSchema: Schema = new Schema({
         default: 'General'
     },
     members: [{
-        type: String
+        type: Schema.Types.ObjectId,
+        ref: 'User'
     }],
     currentMedia: {
         url: { type: String, default: '' },
