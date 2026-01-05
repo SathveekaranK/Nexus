@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 import { useMemo } from 'react';

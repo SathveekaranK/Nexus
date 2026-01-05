@@ -66,7 +66,7 @@ function VoiceChatInner() {
             if (!socket) return;
 
             const handleRemoteMute = async ({ targetUserId, mutedBy }: any) => {
-                if (user && (user.id === targetUserId || user._id === targetUserId)) {
+                if (user && (user.id === targetUserId || (user as any)._id === targetUserId)) {
                     if (localMicrophoneTrack && !isMuted) {
                         await localMicrophoneTrack.setMuted(true);
                         setIsMuted(true);

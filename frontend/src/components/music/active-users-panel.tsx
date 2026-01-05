@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';

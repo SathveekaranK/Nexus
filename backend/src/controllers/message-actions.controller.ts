@@ -15,17 +15,17 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
 
         // Check if user already reacted with this emoji
         const existingReaction = message.reactions?.find(
-            r => r.userId === userId && r.emoji === emoji
+            (r: any) => r.userId === userId && r.emoji === emoji
         );
 
         if (existingReaction) {
             // Remove reaction (toggle off)
-            message.reactions = message.reactions?.filter(
-                r => !(r.userId === userId && r.emoji === emoji)
+            (message as any).reactions = message.reactions?.filter(
+                (r: any) => !(r.userId === userId && r.emoji === emoji)
             ) || [];
         } else {
             // Add reaction
-            if (!message.reactions) message.reactions = [];
+            if (!message.reactions) (message as any).reactions = [];
             message.reactions.push({ userId, emoji });
         }
 

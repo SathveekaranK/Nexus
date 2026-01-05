@@ -22,14 +22,15 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
                 : userId;
 
             // Strict ObjectId validation to prevent Mongoose CastError (500)
-            if (!mongoose.Types.ObjectId.isValid(actualUserId as string)) {
+            const userIdStr = String(actualUserId);
+            if (!mongoose.Types.ObjectId.isValid(userIdStr)) {
                 return res.json({ success: true, data: [] });
             }
 
             query = {
                 $or: [
-                    { senderId: myId, recipientId: actualUserId },
-                    { senderId: actualUserId, recipientId: myId }
+                    { senderId: myId, recipientId: userIdStr },
+                    { senderId: userIdStr, recipientId: myId }
                 ]
             };
         } else {
