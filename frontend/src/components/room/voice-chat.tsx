@@ -20,10 +20,18 @@ function VoiceChatInner() {
     const dispatch = useDispatch<AppDispatch>();
     const roomId = useSelector((state: RootState) => state.room?.roomId);
     const user = useSelector((state: RootState) => state.auth?.user);
-    const [isMuted, setIsMuted] = useState(false);
+    const [isMuted, setIsMuted] = useState(true);
 
     // 1. Get Local Mic
     const { localMicrophoneTrack, isLoading: isMicLoading } = useLocalMicrophoneTrack(true);
+
+    // Enforce default mute state when track is ready
+    useEffect(() => {
+        if (localMicrophoneTrack) {
+            localMicrophoneTrack.setMuted(true);
+            setIsMuted(true);
+        }
+    }, [localMicrophoneTrack]);
 
     // Cleanup Mic on Unmount
     useEffect(() => {
