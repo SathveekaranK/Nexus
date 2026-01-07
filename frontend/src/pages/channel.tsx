@@ -16,7 +16,7 @@ export default function ChannelPage({ currentUser }: ChannelPageProps) {
 
     // Select data from Redux
     const { channels } = useSelector((state: RootState) => state.channels);
-    const { messages } = useSelector((state: RootState) => state.messages);
+    const { messages, error: messageError } = useSelector((state: RootState) => state.messages);
     const { users } = useSelector((state: RootState) => state.users);
 
     const activeChannel = channels.find(c => c.id === channelId);
@@ -32,6 +32,15 @@ export default function ChannelPage({ currentUser }: ChannelPageProps) {
             dispatch(sendMessage({ channelId, content }));
         }
     };
+
+    if (messageError) {
+        return (
+            <div className="flex-1 flex flex-col gap-4 items-center justify-center text-destructive">
+                <p>Failed to load messages.</p>
+                <p className="text-sm border p-2 rounded bg-destructive/10">{messageError}</p>
+            </div>
+        );
+    }
 
     const handleUpdateChannel = (_updatedChannel: Channel) => {
         // Channel update logic handled via Redux

@@ -1,9 +1,10 @@
 import { Toaster } from "@/components/ui/toaster";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "@/components/layout/main-layout";
-import { MessageSquare, Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { MessageSquare, Loader2, Wifi, WifiOff } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { getSocket } from "@/lib/socket-client";
 import { fetchMe } from "@/services/auth/authSlice";
 import { fetchUsers } from "@/services/user/userSlice";
 import { fetchChannels } from "@/services/channel/channelSlice";
@@ -43,10 +44,40 @@ export default function App() {
 
     useEffect(() => {
         if (currentUser) {
-            dispatch(fetchUsers());
-            dispatch(fetchChannels());
+            const token = localStorage.getItem('token');
+            if (token) {
+                import('@/lib/socket-client').then(({ connectSocket }) => {
+                    const socket = connectSocket(token);
+                    // Wait for connection or just assume initialized
+                    if (socket) {
+                        dispatch(fetchUsers());
+                        dispatch(fetchChannels());
+                    }
+                });
+            }
+        } else {
+            import('@/lib/socket-client').then(({ disconnectSocket }) => {
+                disconnectSocket();
+            });
         }
     }, [currentUser, dispatch]);
+
+    const [isConnected, setIsConnected] = useState(false);
+
+    useEffect(() => {
+        const checkConnection = () => {
+            const socket = getSocket();
+            if (socket) {
+                setIsConnected(socket.connected);
+                socket.on('connect', () => setIsConnected(true));
+                socket.on('disconnect', () => setIsConnected(false));
+            }
+        };
+
+        // Check periodically or after auth
+        const interval = setInterval(checkConnection, 1000);
+        return () => clearInterval(interval);
+    }, [currentUser]);
 
     if (isAuthLoading) {
         return (
@@ -58,6 +89,15 @@ export default function App() {
             </div>
         );
     }
+
+    // Connection Status Banner
+    const ConnectionBanner = () => (
+        !isConnected && currentUser ? (
+            <div className="fixed top-0 left-0 w-full bg-yellow-500/90 text-white text-xs font-bold px-2 py-1 z-50 flex items-center justify-center gap-2 backdrop-blur-sm">
+                <Loader2 className="h-3 w-3 animate-spin" /> Connecting to Real-time Server...
+            </div>
+        ) : null
+    );
 
     return (
         <BrowserRouter>

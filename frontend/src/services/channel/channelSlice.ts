@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '@/components/api/axios';
+import { api } from '@/lib/api-client';
 import { Channel } from '@/lib/types';
 
 export interface ChannelState {
@@ -23,7 +23,7 @@ export const fetchChannels = createAsyncThunk(
     async (_, { rejectWithValue }) => {
         try {
             // Backend endpoint: GET /api/channels
-            const response: any = await api.get('/channels');
+            const response = await api.getChannels();
             return response;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -36,7 +36,7 @@ export const createChannel = createAsyncThunk(
     async (channelData: Partial<Channel>, { rejectWithValue }) => {
         try {
             // Backend endpoint: POST /api/channels
-            const response: any = await api.post('/channels', channelData);
+            const response = await api.createChannel(channelData);
             return response;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -48,7 +48,7 @@ export const addMemberToChannel = createAsyncThunk(
     'channels/addMember',
     async ({ channelId, userId }: { channelId: string; userId: string }, { rejectWithValue }) => {
         try {
-            const response: any = await api.post(`/channels/${channelId}/members`, { userId });
+            const response = await api.addMemberToChannel(channelId, userId);
             return response;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -60,7 +60,7 @@ export const leaveChannel = createAsyncThunk(
     'channels/leaveChannel',
     async (channelId: string, { rejectWithValue }) => {
         try {
-            await api.post(`/channels/${channelId}/leave`);
+            await api.leaveChannel(channelId);
             return channelId;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -72,7 +72,7 @@ export const markChannelRead = createAsyncThunk(
     'channels/markRead',
     async (channelId: string) => {
         try {
-            await api.post(`/channels/${channelId}/read`);
+            await api.markChannelRead(channelId);
             return channelId;
         } catch (error: any) {
             console.error('Failed to mark read:', error);
@@ -139,7 +139,7 @@ const channelSlice = createSlice({
             })
             // Create
             .addCase(createChannel.fulfilled, (state, action) => {
-                const newChannel = action.payload;
+                const newChannel: any = action.payload;
                 state.channels.push({
                     ...newChannel,
                     id: newChannel._id || newChannel.id,
@@ -148,7 +148,7 @@ const channelSlice = createSlice({
             })
             // Add Member
             .addCase(addMemberToChannel.fulfilled, (state, action) => {
-                const updatedChannel = action.payload;
+                const updatedChannel: any = action.payload;
                 const index = state.channels.findIndex(c => c.id === (updatedChannel._id || updatedChannel.id));
                 if (index !== -1) {
                     state.channels[index] = {
