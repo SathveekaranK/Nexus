@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUsers, updateUserRole } from '../controllers/user.controller';
+import { getUsers, updateUserRole, updateUserProfile } from '../controllers/user.controller';
 
 const router = express.Router();
 
@@ -17,5 +17,6 @@ const router = express.Router();
  */
 router.get('/', getUsers);
 router.patch('/:id/role', getUsers, updateUserRole); // Should use permission check properly but for now authenticated
+router.put('/profile', updateUserProfile);
 
 export default router;

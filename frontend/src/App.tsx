@@ -52,10 +52,22 @@ export default function App() {
                     if (socket.connected) {
                         dispatch(fetchUsers());
                         dispatch(fetchChannels());
+
+                        // Listen for new messages to update sort order instantly
+                        socket.on('message:new', () => {
+                            dispatch(fetchUsers());
+                            dispatch(fetchChannels());
+                        });
                     } else {
                         socket.once('connect', () => {
                             dispatch(fetchUsers());
                             dispatch(fetchChannels());
+
+                            // Listen for new messages to update sort order instantly
+                            socket.on('message:new', () => {
+                                dispatch(fetchUsers());
+                                dispatch(fetchChannels());
+                            });
                         });
                     }
                 });

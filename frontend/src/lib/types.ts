@@ -5,6 +5,7 @@ export interface User {
   avatar: string;
   status: 'online' | 'offline' | 'away' | 'dnd';
   customStatus?: string;
+  bio?: string;
   roles?: string[]; // Updated for multi-role
 }
 

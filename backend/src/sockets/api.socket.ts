@@ -34,16 +34,20 @@ export const apiSocketHandler = (io: Server) => {
         const handleRequest = async (handler: () => Promise<any>, callback: any) => {
             try {
                 const data = await handler();
-                callback({ success: true, data });
+                if (typeof callback === 'function') {
+                    callback({ success: true, data });
+                }
             } catch (error: any) {
                 console.error("Socket API Error:", error);
-                callback({ success: false, message: error.message });
+                if (typeof callback === 'function') {
+                    callback({ success: false, message: error.message });
+                }
             }
         };
 
         // --- Users ---
         socket.on('user:list', (data, callback) => {
-            handleRequest(() => getUsersInternal(), callback);
+            handleRequest(() => getUsersInternal(userId), callback);
         });
 
         // --- Channels ---
@@ -95,6 +99,36 @@ export const apiSocketHandler = (io: Server) => {
             channels.forEach((c: any) => {
                 socket.join(c._id.toString());
             });
+        });
+
+
+
+        // --- Room Management ---
+        socket.on('channel:join', (data) => {
+            const { channelId } = data;
+            if (channelId) socket.join(channelId);
+        });
+
+        socket.on('channel:leave', (data) => {
+            const { channelId } = data;
+            if (channelId) socket.leave(channelId);
+        });
+
+        // --- Typing ---
+        socket.on('message:typing', (data) => {
+            const { channelId } = data;
+            // Broadcast to room except sender
+            socket.to(channelId).emit('message:typing', data);
+        });
+
+        socket.on('message:typing_stop', (data) => {
+            const { channelId } = data;
+            socket.to(channelId).emit('message:typing_stop', data);
+        });
+
+        // --- Setup ---
+        socket.on('user:setup', (data) => {
+            // Already setup on connection, but can be used for status override
         });
 
         socket.on('disconnect', () => {
