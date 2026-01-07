@@ -49,9 +49,65 @@ export default function ChannelList({
 
   // Sorting Logic
   const sortedChannels = [...channels].sort((a, b) => {
+    // 1. Redux Real-time Activity (Highest Priority)
     const timeA = lastActivity[a.id] ? new Date(lastActivity[a.id]).getTime() : 0;
     const timeB = lastActivity[b.id] ? new Date(lastActivity[b.id]).getTime() : 0;
-    return timeB - timeA; // Descending (newest first)
+
+    if (timeA !== timeB) {
+      return timeB - timeA;
+    }
+
+    // 2. Backend provided sort (Initial Load)
+    // For Channels: 'lastMessageAt'
+    // For DMs (Users): 'sortTime' or implicit order from backend array
+
+    // We can try to rely on the array order if it came sorted from backend
+    // BUT 'channels' prop here is 'filteredDMs' or 'filteredChannels' from MainLayout
+    // MainLayout creates 'filteredDMs' via map, which PRESERVES order of 'users'.
+    // 'users' from Redux IS sorted by backend.
+
+    // So if we just DON'T sort when times are equal/zero, we preserve backend order?
+    // The previous sort callback returns 0 if times are 0, which preserves order in stable sort.
+    // However, let's be explicit if we can. 
+
+    // Actually, the previous code: `return timeB - timeA`
+    // If both are 0, it returns 0.
+    // JS sort is stable in modern browsers.
+    // So if Redux has no activity, it respects the input array order.
+
+    // ISSUE: 'lastActivity' might be sparsely populated?
+    // Or maybe 'channels' prop (filteredDMs) is NOT in order?
+
+    // Let's check MainLayout 'users' source. 
+    // It comes from props `users`.
+    // In App.tsx: `users` comes from `useSelector((state: RootState) => state.users)`.
+    // In userSlice: `state.users = action.payload`.
+    // So it should be sorted.
+
+    // If it's not working, maybe `timeA` and `timeB` are effectively 0 for everyone?
+    // And if `lastActivity` is 0, we return 0.
+
+    // Wait, let's look at `renderDMs`.
+    // It iterates `sortedChannels`.
+
+    // If I want to force the backend sort, I should trust the input array order for the initial state.
+    // But verify if `filteredDMs` construction in MainLayout reorders? 
+    // `users.map(...)` preserves order.
+
+    // Let's look at MainLayout prop `allChannels`.
+    // `channels` (the real ones) are sorted by `getUserChannelsInternal` (aggregation).
+
+    // Is it possible `lastActivity` has OLD values?
+    // Or maybe `sortedChannels` logic is flawed?
+
+    // Let's add a robust fallback to the object's own timestamp properties if valid.
+    const lastMsgA = (a as any).lastMessageAt || (a as any).sortTime || 0;
+    const lastMsgB = (b as any).lastMessageAt || (b as any).sortTime || 0;
+
+    const dbTimeA = new Date(lastMsgA).getTime();
+    const dbTimeB = new Date(lastMsgB).getTime();
+
+    return dbTimeB - dbTimeA;
   });
 
   const getUserForDM = (channel: Channel) => {

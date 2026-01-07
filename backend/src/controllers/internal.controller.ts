@@ -29,30 +29,62 @@ export const createChannelInternal = async (userId: string, data: any) => {
 };
 
 export const getUserChannelsInternal = async (userId: string) => {
-    const channels = await Channel.find({ members: userId }).sort({ createdAt: -1 });
+    // 1. Fetch Channels with Unread/LastMessage stats using Aggregation
+    const channels = await Channel.aggregate([
+        // CRITICAL: Cast string userId to ObjectId for aggregation match
+        { $match: { members: new mongoose.Types.ObjectId(userId) } },
+        {
+            $addFields: {
+                channelIdString: { $toString: "$_id" }
+            }
+        },
+        {
+            $lookup: {
+                from: "messages",
+                let: { cid: "$channelIdString" },
+                pipeline: [
+                    { $match: { $expr: { $eq: ["$channelId", "$$cid"] } } },
+                    { $sort: { createdAt: -1 } },
+                    { $limit: 1 },
+                    {
+                        $group: {
+                            _id: "$channelId",
+                            lastMessageAt: { $first: "$createdAt" }
+                        }
+                    }
+                ],
+                as: "lastMsgStat"
+            }
+        },
+        {
+            // Separate lookup for unread count to be simpler/safer
+            $lookup: {
+                from: "messages",
+                let: { cid: "$channelIdString" },
+                pipeline: [
+                    { $match: { $expr: { $eq: ["$channelId", "$$cid"] } } },
+                    { $match: { "readBy.userId": { $ne: new mongoose.Types.ObjectId(userId) } } },
+                    { $count: "count" }
+                ],
+                as: "unreadStat"
+            }
+        },
+        {
+            $addFields: {
+                unreadCount: { $ifNull: [{ $arrayElemAt: ["$unreadStat.count", 0] }, 0] },
+                lastMessageAt: {
+                    $ifNull: [
+                        { $arrayElemAt: ["$lastMsgStat.lastMessageAt", 0] },
+                        "$createdAt"
+                    ]
+                },
+                id: { $toString: "$_id" }
+            }
+        },
+        { $sort: { lastMessageAt: -1 } }
+    ]);
 
-    const channelsWithData = await Promise.all(channels.map(async (c) => {
-        const unreadCount = await Message.countDocuments({
-            channelId: c._id.toString(),
-            "readBy.userId": { $ne: userId }
-        });
-
-        const lastMessage = await Message.findOne({ channelId: c._id.toString() })
-            .sort({ createdAt: -1 })
-            .select('createdAt');
-
-        return {
-            ...c.toObject(),
-            unreadCount,
-            lastMessageAt: lastMessage ? lastMessage.createdAt : c.createdAt
-        };
-    }));
-
-    channelsWithData.sort((a: any, b: any) => {
-        return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
-    });
-
-    return channelsWithData;
+    return channels;
 };
 
 // --- Message Handlers (Internal) ---
@@ -154,6 +186,62 @@ export const sendMessageInternal = async (userId: string, data: any) => {
 
 // --- User Handlers (Internal) ---
 
-export const getUsersInternal = async () => {
-    return await User.find().select('-password');
+export const getUsersInternal = async (currentUserId?: string) => {
+    // If no userId provided, just return raw list (fallback)
+    if (!currentUserId) {
+        return await User.find().select('-password');
+    }
+
+    // Fetch Users with DM Stats
+    const users = await User.aggregate([
+        // Exclude myself
+        { $match: { _id: { $ne: new mongoose.Types.ObjectId(currentUserId) } } },
+        {
+            $lookup: {
+                from: "messages",
+                let: { uid: "$_id" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $or: [
+                                    {
+                                        $and: [
+                                            { $eq: [{ $toString: "$senderId" }, currentUserId] },
+                                            { $eq: [{ $toString: "$recipientId" }, { $toString: "$$uid" }] }
+                                        ]
+                                    },
+                                    {
+                                        $and: [
+                                            { $eq: [{ $toString: "$senderId" }, { $toString: "$$uid" }] },
+                                            { $eq: [{ $toString: "$recipientId" }, currentUserId] }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    { $sort: { createdAt: -1 } },
+                    { $limit: 1 }, // Just need the last one
+                ],
+                as: "lastMsg"
+            }
+        },
+        {
+            $addFields: {
+                lastMessage: { $arrayElemAt: ["$lastMsg", 0] },
+                id: { $toString: "$_id" }
+            }
+        },
+        {
+            $addFields: {
+                // Sort Value: timestamp of last message OR default (0)
+                sortTime: { $ifNull: ["$lastMessage.createdAt", new Date(0)] }
+            }
+        },
+        { $sort: { sortTime: -1, name: 1 } }, // Most recent DMs first
+        { $project: { password: 0, lastMsg: 0, sortTime: 0, __v: 0 } }
+    ]);
+
+    return users;
 };

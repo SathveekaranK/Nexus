@@ -26,6 +26,7 @@ export const api = {
     login: (credentials: any) => apiFromAxios.post<{ token: string; user: User }>('/auth/login', credentials) as unknown as Promise<{ token: string; user: User }>,
     register: (userData: any) => apiFromAxios.post<{ token: string; user: User }>('/auth/register', userData) as unknown as Promise<{ token: string; user: User }>,
     getMe: () => apiFromAxios.get<User>('/auth/me') as unknown as Promise<User>,
+    updateProfile: (data: { name?: string; bio?: string; status?: string; avatar?: string }) => apiFromAxios.put<User>('/users/profile', data) as unknown as Promise<User>,
 
     // --- USERS (Socket) ---
     getUsers: () => socketRequest<User[]>('user:list'),

@@ -31,17 +31,7 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
   const [user, setUser] = useState(initialUser);
   const { toast } = useToast();
 
-  const handleProfileEditToggle = () => {
-    if (isEditingProfile) {
-      // In a real app, this would be an API call
-      // For now, we just update the local state which doesn't persist.
-      toast({
-        title: "Profile Updated",
-        description: "Your changes have been saved.",
-      });
-    }
-    setIsEditingProfile(!isEditingProfile);
-  };
+
 
   const handleCancelEdit = () => {
     setUser(initialUser);
@@ -74,10 +64,6 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
                     <AvatarImage src={user.avatar} data-ai-hint="person portrait" />
                     <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                   </Avatar>
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={user.avatar} data-ai-hint="person portrait" />
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
                   <div className={cn(
                     "absolute bottom-0 right-0 h-6 w-6 rounded-full border-4 border-card",
                     getStatusClasses(user.status)
@@ -100,6 +86,22 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
                   />
                 </div>
               </div>
+
+              {/* Bio Field */}
+              <div className="grid gap-1.5 w-full">
+                <Label htmlFor="bio">About Me (Bio)</Label>
+                <div className="relative">
+                  <textarea
+                    id="bio"
+                    placeholder="Tell us about yourself..."
+                    value={user.bio || ''}
+                    onChange={(e) => setUser({ ...user, bio: e.target.value })}
+                    disabled={!isEditingProfile}
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
               <div className="grid gap-1.5 w-full">
                 <Label htmlFor="customStatus">Custom Status</Label>
                 <div className="relative">
@@ -115,7 +117,23 @@ export default function SettingsView({ user: initialUser }: SettingsViewProps) {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleProfileEditToggle}>
+                <Button onClick={async () => {
+                  if (isEditingProfile) {
+                    try {
+                      await import('@/lib/api-client').then(({ api }) => api.updateProfile({
+                        name: user.name,
+                        bio: user.bio,
+                        status: user.status
+                      }));
+                      toast({ title: "Profile Updated", description: "Your changes have been saved." });
+                      setIsEditingProfile(false);
+                    } catch (e) {
+                      toast({ variant: "destructive", title: "Update Failed", description: "Could not save profile." });
+                    }
+                  } else {
+                    setIsEditingProfile(true);
+                  }
+                }}>
                   {isEditingProfile ? "Save Changes" : "Edit Profile"}
                 </Button>
                 {isEditingProfile && (

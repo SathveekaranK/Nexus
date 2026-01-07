@@ -160,6 +160,8 @@ export default function MainLayout({
         name: u.id === currentUser.id ? `${u.name} (you)` : u.name,
         type: 'dm',
         memberIds: [currentUser.id, u.id],
+        sortTime: (u as any).sortTime, // Pass sorting data
+        lastMessage: (u as any).lastMessage // Pass preview data
       }));
 
     const channels = allChannels.filter((c) => c.type === 'channel');
