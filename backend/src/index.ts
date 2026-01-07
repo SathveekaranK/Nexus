@@ -23,6 +23,7 @@ import eventRoutes from './routes/event.routes';
 import { authMiddleware } from './middleware/auth.middleware';
 import { roomSocketHandler } from './sockets/room.socket';
 import { chatSocketHandler } from './sockets/chat.socket';
+import { apiSocketHandler } from './sockets/api.socket';
 import cookieParser from 'cookie-parser';
 
 dotenv.config();
@@ -67,6 +68,10 @@ app.use(cookieParser());
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date() });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', authMiddleware, userRoutes);
 app.use('/api/messages', authMiddleware, messageRoutes);
@@ -83,6 +88,7 @@ app.use('/api/events', authMiddleware, eventRoutes);
 // Socket.io Handlers
 roomSocketHandler(io);
 chatSocketHandler(io);
+apiSocketHandler(io);
 
 // Start Server
 connectDB().then(async () => {
@@ -142,3 +148,4 @@ connectDB().then(async () => {
         console.log(`Backend server running on port ${PORT}`);
     });
 });
+

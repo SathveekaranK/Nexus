@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '@/components/api/axios';
+import { api } from '@/lib/api-client';
 import { Message } from '@/lib/types';
 
 export interface MessageState {
@@ -18,12 +18,14 @@ export const fetchMessages = createAsyncThunk(
     'messages/fetchMessages',
     async (params: { userId?: string; channelId?: string }, { rejectWithValue }) => {
         try {
-            const { userId, channelId } = params;
-            let url = '/messages?';
-            if (channelId) url += `channelId=${channelId}`;
-            else if (userId) url += `userId=${userId}`;
+            // Map userId to contactId for backend compatibility if needed
+            // Backend expects 'contactId' in queryParams for DMs if channelId is missing
+            const requestParams = {
+                channelId: params.channelId,
+                contactId: params.userId
+            };
 
-            const response: any = await api.get(url);
+            const response = await api.getMessages(requestParams);
             return response;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -35,7 +37,8 @@ export const sendMessage = createAsyncThunk(
     'messages/sendMessage',
     async (data: { recipientId?: string; channelId?: string; content: string }, { rejectWithValue }) => {
         try {
-            const response: any = await api.post('/messages', data);
+            // Note: Socket API expects the same data structure
+            const response = await api.createMessage(data);
             return response;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -73,7 +76,7 @@ const messageSlice = createSlice({
             })
             // Send
             .addCase(sendMessage.fulfilled, (state, action) => {
-                const msg = action.payload;
+                const msg: any = action.payload;
                 state.messages.push({
                     ...msg,
                     id: msg._id || msg.id,
