@@ -13,11 +13,64 @@ import { createRoom, joinRoom, leaveRoom } from '@/services/room/roomSlice';
 import { useToast } from '@/hooks/use-toast';
 import MusicLobby from '@/components/music/music-lobby';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { useState } from 'react';
+import { Plus, ListMusic, Users } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { getSocket } from '@/components/room/room-manager';
 
 export default function MusicPage() {
     const dispatch = useDispatch<AppDispatch>();
     const { roomId, members, currentMedia } = useSelector((state: RootState) => state.room);
     const { toast } = useToast();
+    const [searchQuery, setSearchQuery] = useState('');
+    const [queue, setQueue] = useState<string[]>([]);
+
+    const handleAddToQueue = async () => {
+        if (!searchQuery.trim()) return;
+
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/youtube/search?q=${encodeURIComponent(searchQuery)}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await res.json();
+
+            if (data.success && data.data.length > 0) {
+                const video = data.data[0];
+                const socket = getSocket();
+
+                if (socket) {
+                    // ALWAYS PLAY IMMEDIATELY per user request
+                    const parseDuration = (str: string) => {
+                        if (!str) return 0;
+                        const p = str.split(':').map(Number);
+                        if (p.length === 2) return p[0] * 60 + p[1];
+                        return p[0] * 3600 + p[1] * 60 + p[2];
+                    };
+
+                    socket.emit('play_media', {
+                        roomId,
+                        media: {
+                            ...currentMedia,
+                            url: video.url,
+                            title: video.title,
+                            thumbnail: video.thumbnail,
+                            isPlaying: true,
+                            timestamp: 0,
+                            duration: parseDuration(video.duration),
+                            playedAt: Date.now()
+                        }
+                    });
+                    toast({ title: "Now Playing", description: video.title });
+                }
+                setSearchQuery('');
+            } else {
+                toast({ title: "No results", variant: "destructive" });
+            }
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to search.", variant: "destructive" });
+        }
+    };
 
     // Fix: Explicitly pass undefined to satisfy the Thunk's signature if it expects an argument
     const handleCreateRoom = async () => {
@@ -89,11 +142,25 @@ export default function MusicPage() {
                 </header>
 
                 {!roomId ? (
-                    <div className="flex-1 flex flex-col h-full overflow-hidden">
+                    <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+                        {/* DEBUG OVERLAY - Hidden when not in room, actually this block is for !roomId so socket is null anyway usually */}
+                        {/* We only want debug overlay INSIDE the room or we need to handle it gracefully */}
                         <MusicLobby onJoinRoom={(id) => handleJoinRoom(id)} />
                     </div>
                 ) : (
-                    <div className="flex-1 flex flex-col lg:flex-row gap-4 md:gap-6 mt-4 md:mt-6 overflow-hidden">
+                    <div className="flex-1 flex flex-col lg:flex-row gap-4 md:gap-6 mt-4 md:mt-6 overflow-hidden relative">
+                        {/* DEBUG OVERLAY - Only show when in room */}
+                        <div className="absolute top-0 right-0 m-4 p-4 bg-black/80 text-green-400 font-mono text-xs rounded-lg z-50 pointer-events-none max-w-sm">
+                            <h3 className="font-bold underline mb-2">DEBUG STATUS</h3>
+                            <p>Room ID: {roomId}</p>
+                            <p>Socket ID: {getSocket()?.id || 'Disconnected'}</p>
+                            <p>Transport: {getSocket()?.io?.engine?.transport?.name || 'N/A'}</p>
+                            <p>Media Title: {currentMedia?.title}</p>
+                            <p>Is Playing: {String(currentMedia?.isPlaying)}</p>
+                            <p>Members: {members.length}</p>
+                            {!getSocket() && <p className="text-red-500 font-bold animate-pulse">SOCKET DISCONNECTED - ACTIONS FAILED</p>}
+                        </div>
+
                         <div className="flex-1 flex flex-col gap-4">
                             <Card className="flex-1">
                                 <CardHeader>
@@ -179,6 +246,31 @@ export default function MusicPage() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 glass p-3 md:p-4 rounded-xl">
                     <div className="flex items-center gap-3">
+                        {/* DEBUG BUTTON */}
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                                const socket = getSocket();
+                                console.log("Debug Play Clicked. Socket:", socket?.id, "Room:", roomId);
+                                if (socket && roomId) {
+                                    socket.emit('play_media', {
+                                        roomId,
+                                        media: {
+                                            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Rick Roll for reliability
+                                            title: 'Debug Test Video',
+                                            thumbnail: '',
+                                            isPlaying: true,
+                                            timestamp: 0,
+                                            duration: 212,
+                                            playedAt: Date.now()
+                                        }
+                                    });
+                                }
+                            }}
+                        >
+                            DEBUG: FORCE PLAY
+                        </Button>
                         <div className="p-2 bg-primary/20 rounded-lg ring-2 ring-primary/10">
                             <MusicIcon className="h-5 w-5 text-primary" />
                         </div>

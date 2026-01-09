@@ -1,7 +1,7 @@
 import express from 'express';
 import { getMessages, sendMessage, markMessageRead } from '../controllers/message.controller';
 import { addReaction, updateMessage, deleteMessage } from '../controllers/message-actions.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
 

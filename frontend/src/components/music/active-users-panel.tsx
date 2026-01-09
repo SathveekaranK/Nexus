@@ -104,6 +104,12 @@ export default function ActiveUsersPanel() {
                                             <div className="flex items-center gap-1.5">
                                                 <p className="text-sm font-medium truncate">{member.name || 'Unknown User'}</p>
                                                 {getRoleIcon(member.roles)}
+                                                {/* Mic Status Icon */}
+                                                {member.isMuted ? (
+                                                    <MicOff className="h-3 w-3 text-destructive opacity-50" />
+                                                ) : (
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" title="Mic On" />
+                                                )}
                                             </div>
                                             {/* Mute Button Logic */}
                                             {/* Current user logic checks (pseudo-code, assuming we access current user from somewhere or context) */}

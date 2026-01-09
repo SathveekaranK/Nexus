@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { chat, getHistory } from '../controllers/ai.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 

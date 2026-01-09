@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { io, Socket } from 'socket.io-client';
 import { AppDispatch, RootState } from '@/store/store';
-import { updateMedia, updateMembers } from '@/services/room/roomSlice';
+import { updateMedia, updateMembers, updateMemberStatus } from '@/services/room/roomSlice';
 
 let socket: Socket | null = null;
 
@@ -18,22 +18,33 @@ const RoomManager = ({ children }: RoomManagerProps) => {
     const user = useSelector((state: RootState) => state.auth?.user);
 
     useEffect(() => {
-        if (!roomId || !user) return;
+        if (!roomId || !user) {
+            return;
+        }
 
         // Initialize Socket
         socket = io(import.meta.env.VITE_API_URL.replace('/api', ''), {
             transports: ['websocket'],
+            auth: {
+                token: localStorage.getItem('token')
+            }
         });
 
         socket.on('connect', () => {
+            console.log("Socket Connected:", socket?.id);
             socket?.emit('join_room', {
                 roomId,
                 user // Send full user object (contains id, name, avatar, etc.)
             });
         });
 
+        socket.on('disconnect', () => {
+            console.warn("Socket Disconnected");
+        });
+
         // Media Events
         socket.on('media_state_changed', (media) => {
+            console.log("Socket: Media State Changed", media);
             dispatch(updateMedia(media));
         });
 
@@ -48,6 +59,10 @@ const RoomManager = ({ children }: RoomManagerProps) => {
         // Member Updates
         socket.on('room_members_updated', (members) => {
             dispatch(updateMembers(members));
+        });
+
+        socket.on('member_status_updated', (data) => {
+            dispatch(updateMemberStatus(data)); // { userId, isMuted }
         });
 
 
@@ -70,7 +85,7 @@ const RoomManager = ({ children }: RoomManagerProps) => {
                 socket = null;
             }
         };
-    }, [roomId, user, dispatch]);
+    }, [roomId, user?.id, dispatch]);
 
     return <>{children}</>;
 };

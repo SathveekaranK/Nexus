@@ -1,24 +1,33 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret';
-
 export interface AuthRequest extends Request {
-    userId?: string;
+    user?: any;
+    userId?: string; // Keep for backward compatibility if needed, but prefer user.userId
 }
 
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
-    const token = req.headers.authorization?.split(' ')[1];
+    // Handle both header formats
+    const token = req.header('Authorization')?.replace('Bearer ', '') || req.headers.authorization?.split(' ')[1];
 
     if (!token) {
-        return res.status(401).json({ success: false, message: 'Unauthorized: No token provided' });
+        return res.status(401).json({ message: 'No token, authorization denied' });
     }
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+        const JWT_SECRET = process.env.JWT_SECRET || 'dev-fallback-secret-dont-use-in-prod';
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+
+        // Debug log to verify token content
+        console.log("Auth Middleware Decoded:", decoded);
+
+        // Set BOTH for maximum compatibility during refactor
+        req.user = decoded;
         req.userId = decoded.userId;
+
         next();
-    } catch (error) {
-        return res.status(401).json({ success: false, message: 'Unauthorized: Invalid token' });
+    } catch (err) {
+        console.error("Auth Middleware Error:", err);
+        res.status(401).json({ message: 'Token is not valid' });
     }
 };

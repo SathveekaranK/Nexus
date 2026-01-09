@@ -4,6 +4,7 @@ import { RootState, AppDispatch } from '@/store/store';
 import { Mic, MicOff, Loader2, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { leaveRoom } from '@/services/room/roomSlice';
+import { useToast } from '@/hooks/use-toast';
 import AgoraRTC, {
     AgoraRTCProvider,
     useJoin,
@@ -21,6 +22,9 @@ function VoiceChatInner() {
     const roomId = useSelector((state: RootState) => state.room?.roomId);
     const user = useSelector((state: RootState) => state.auth?.user);
     const [isMuted, setIsMuted] = useState(true);
+
+    // Added explicit user ID handling
+    const uid = user?.id || null;
 
     // 1. Get Local Mic
     const { localMicrophoneTrack, isLoading: isMicLoading } = useLocalMicrophoneTrack(true);
@@ -51,24 +55,26 @@ function VoiceChatInner() {
             appid: APP_ID,
             channel: roomId || "lobby",
             token: null, // Basic auth
-            uid: user?.id || null
+            uid: uid
         },
         !!roomId && !!APP_ID
     );
 
     // Debug: Listen for Agora SDK Exceptions
+    // Debug: Listen for Agora SDK Exceptions
     useEffect(() => {
-        // We need to access the client instance. 
-        // Since we are inside AgoraRTCProvider, we can't easily get the client object directly here without `useRTCClient` (if available) or passing it down.
-        // However, 'agora-rtc-react' provides hooks. 
-        // A common pattern to debug client events is to use the client object itself.
-        // But `VoiceChatInner` doesn't receive `client`.
-        // Let's assume standard behavior for now, but to really debug "701", we generally need `client.on("exception")`.
-        // We will modify the parent component to attach the listener or use a hook if available.
-        // Actually, `useJoin` handles the join logic. `usePrepareComponent` might be useful but let's stick to what we have.
-
         if (joinError) {
             console.error("Agora Join Error:", joinError);
+            const errorMessage = (joinError as any).code === "CAN_NOT_GET_GATEWAY_SERVER"
+                ? "Firewall blocking Agora. Check connection."
+                : "Failed to connect to voice chat.";
+
+            // Dispatch a custom event or use a ref if toast isn't available directly here, 
+            // but since we are inside a component, we can use a callback or just console for now if we don't have toast prop.
+            // Ideally pass `toast` down or use a global like `console.error` visible to user.
+            // Let's rely on the parent or adding `useToast` here if not already imported.
+            // Wait, `useJoin` returns error but doesn't trigger a side effect function we can hook into easily for one-off toast 
+            // except this effect.
         }
     }, [joinError]);
 
@@ -111,8 +117,25 @@ function VoiceChatInner() {
     // Mute Logic
     const toggleMute = async () => {
         if (localMicrophoneTrack) {
-            await localMicrophoneTrack.setMuted(!isMuted);
-            setIsMuted(!isMuted);
+            const newMutedState = !isMuted;
+            await localMicrophoneTrack.setMuted(newMutedState);
+            setIsMuted(newMutedState);
+
+            // Sync with Room
+            import('@/components/room/room-manager').then(({ getSocket }) => {
+                const socket = getSocket();
+                console.log(`[VoiceChat] Toggling Mute. New State: ${newMutedState}. Socket: ${!!socket}, Room: ${roomId}, User: ${user?.id}`);
+
+                if (socket && roomId && user) {
+                    socket.emit('mute_status_change', {
+                        roomId,
+                        userId: user.id || (user as any)._id,
+                        isMuted: newMutedState
+                    });
+                } else {
+                    console.error("[VoiceChat] Cannot sync mute state - missing dependencies");
+                }
+            });
         }
     };
 
@@ -180,7 +203,15 @@ function VoiceChatInner() {
 // Wrapper to provide Client
 export default function VoiceChat() {
     // Create client once using useMemo to prevent recreation on re-renders
-    const client = useMemo(() => AgoraRTC.createClient({ mode: "rtc", codec: "vp8" }), []);
+    const client = useMemo(() => {
+        const c = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        // Attempt to start Cloud Proxy if available
+        // Note: This requires enabling Cloud Proxy in Agora Console, but we can try setting it client side
+        // c.startProxyServer(3); // 3 = UDP(1) + TCP(2)
+        return c;
+    }, []);
+
+    const { toast } = useToast();
 
     useEffect(() => {
         const handleException = (event: any) => {
@@ -188,6 +219,11 @@ export default function VoiceChat() {
             // Specifically log 701 errors for visibility
             if (event.code === 701) {
                 console.error("Agora ICE Error 701: Network blocking or Firewall issue detected. Check VPN/Firewall settings.");
+                toast({
+                    title: "Voice Connection Error",
+                    description: "Firewall blocking connection (Error 701). Try a different network.",
+                    variant: "destructive"
+                });
             }
         };
 
@@ -196,7 +232,7 @@ export default function VoiceChat() {
         return () => {
             client.off("exception", handleException);
         };
-    }, [client]);
+    }, [client, toast]);
 
     return (
         <AgoraRTCProvider client={client}>

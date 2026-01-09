@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { User } from '../models/User';
 import jwt from 'jsonwebtoken';
-import { AuthRequest } from '../middleware/auth.middleware';
+import { AuthRequest } from '../middleware/auth';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -91,14 +91,22 @@ export const login = async (req: Request, res: Response) => {
 };
 
 // Get Me
-export const getMe = async (req: AuthRequest, res: Response) => {
+export const getMe = async (req: Request, res: Response) => {
     try {
-        const user = await User.findById(req.user.userId).select('-password');
+        const authReq = req as AuthRequest;
+        if (!authReq.user || !authReq.user.userId) {
+            // Fallback: Check if it's nested
+            console.error("Auth 'getMe' Failed. structure:", JSON.stringify(authReq.user));
+            return res.status(401).json({ success: false, message: 'Not authenticated' });
+        }
+
+        const user = await User.findById(authReq.user.userId).select('-password');
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
         res.json({ success: true, data: user });
     } catch (error: any) {
+        console.error("Auth 'getMe' Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
