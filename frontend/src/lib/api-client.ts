@@ -129,5 +129,11 @@ export const api = {
             body: JSON.stringify({ messages }),
         });
         return handleResponse(res);
+    },
+    getAiHistory: async () => {
+        const res = await fetch(`${API_URL}/ai/history`, {
+            headers: getHeaders(),
+        });
+        return handleResponse(res);
     }
 };

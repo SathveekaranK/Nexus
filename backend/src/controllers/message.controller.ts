@@ -4,6 +4,7 @@ import { Message } from '../models/Message';
 import { User } from '../models/User';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { createNotification } from './notification.controller';
+import { MessageEnricher } from '../services/ai/MessageEnricher';
 
 export const getMessages = async (req: AuthRequest, res: Response) => {
     try {
@@ -67,6 +68,11 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
             readBy: [{ userId: senderId, readAt: new Date() }]
         });
         await message.save();
+
+        // [AI Pipeline] Async Enrichment (Non-blocking)
+        if (type === 'text') {
+            MessageEnricher.enrich(message._id.toString(), content);
+        }
 
         const sender = await User.findById(senderId).select('name');
         const senderName = sender?.name || 'Someone';

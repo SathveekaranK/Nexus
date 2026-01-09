@@ -39,7 +39,7 @@ export const apiSocketHandler = (io: Server) => {
                 }
             } catch (error: any) {
                 console.error("Socket API Error:", error);
-                if (typeof callback === 'function') {
+                if (callback) {
                     callback({ success: false, message: error.message });
                 }
             }
@@ -68,29 +68,33 @@ export const apiSocketHandler = (io: Server) => {
             // We need custom handling here to emit events to room
             try {
                 const message = await sendMessageInternal(userId, data);
-                callback({ success: true, data: message });
+                if (typeof callback === 'function') {
+                    callback({ success: true, data: message });
+                }
 
                 // Real-time broadcast
                 if (message.channelId) {
                     io.to(message.channelId).emit('message:new', message);
                 } else if (message.recipientId) {
                     // For DMs, emit to both sender and recipient
-                    // We need to map userIds to socketIds or emit to a room named by userId
-                    // Assuming we have a room per user (common pattern) or we broadcast to all sockets of that user
-                    // For now, let's assume we don't have user-specific rooms set up in *this* file, 
-                    // but chat.socket.ts might have them. 
-                    // Actually, usually users join a room named `user:${userId}`
-                    io.to(`user:${message.recipientId.toString()}`).emit('message:new', message);
-                    io.to(`user:${message.senderId.toString()}`).emit('message:new', message);
+                    const recipientIdStr = message.recipientId?._id?.toString() || message.recipientId?.toString();
+                    const senderIdStr = message.senderId?._id?.toString() || message.senderId?.toString();
+
+                    if (recipientIdStr) io.to(`user:${recipientIdStr}`).emit('message:new', message);
+                    if (senderIdStr) io.to(`user:${senderIdStr}`).emit('message:new', message);
                 }
 
             } catch (error: any) {
-                callback({ success: false, message: error.message });
+                console.error('Socket Message Error:', error);
+                if (typeof callback === 'function') {
+                    callback({ success: false, message: error.message });
+                }
             }
         });
 
         // Join User Room to receive DM events
-        socket.join(`user:${userId}`);
+        const userRoom = `user:${userId}`;
+        socket.join(userRoom);
 
         // Join Channel Rooms
         // We need to fetch user channels and join them
@@ -134,5 +138,14 @@ export const apiSocketHandler = (io: Server) => {
         socket.on('disconnect', () => {
             // console.log('User disconnected from API Socket');
         });
+    });
+
+    // Listen to internal events
+    const { socketEvents } = require('../services/socketEvents');
+
+    socketEvents.on('notification:new', (data: any) => {
+        const { userId, notification } = data;
+        // Broadcast to user's room
+        io.to(`user:${userId}`).emit('notification:new', notification);
     });
 };

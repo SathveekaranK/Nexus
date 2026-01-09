@@ -41,7 +41,7 @@ export const getPublicRooms = async (req: Request, res: Response): Promise<void>
 export const getRoom = async (req: Request, res: Response): Promise<void> => {
     try {
         const { roomId } = req.params;
-        const room = await Room.findOne({ roomId });
+        const room = await Room.findOne({ roomId }).populate('members', 'name avatar email roles');
 
         if (!room) {
             res.status(404).json({ success: false, message: 'Room not found' });

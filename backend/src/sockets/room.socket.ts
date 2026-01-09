@@ -12,6 +12,10 @@ export const roomSocketHandler = (io: Server) => {
                 const userId = user.id || user._id; // Handle both id formats
                 socket.join(roomId);
 
+                // Store in socket data for disconnect handling
+                socket.data.userId = userId;
+                socket.data.roomId = roomId;
+
                 // Update room members
                 const room = await Room.findOneAndUpdate(
                     { roomId },
@@ -146,8 +150,26 @@ export const roomSocketHandler = (io: Server) => {
             }
         });
 
-        socket.on('disconnect', () => {
-            // Cleanup if needed
+        socket.on('disconnect', async () => {
+            const { userId, roomId } = socket.data;
+            if (userId && roomId) {
+                try {
+                    const room = await Room.findOneAndUpdate(
+                        { roomId },
+                        { $pull: { members: userId } },
+                        { new: true }
+                    ).populate('members', 'name avatar email roles');
+
+                    if (room) {
+                        io.to(roomId).emit('room_members_updated', room.members);
+                        if (room.members.length === 0) {
+                            await Room.deleteOne({ roomId });
+                        }
+                    }
+                } catch (e) {
+                    console.error("Disconnect cleanup error", e);
+                }
+            }
         });
     });
 };

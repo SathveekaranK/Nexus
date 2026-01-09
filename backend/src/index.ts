@@ -90,6 +90,10 @@ roomSocketHandler(io);
 chatSocketHandler(io);
 apiSocketHandler(io);
 
+// Init Scheduled Tasks
+import { DailyCleanup } from './services/DailyCleanup';
+DailyCleanup.init();
+
 // Start Server
 connectDB().then(async () => {
     // Reset all users to offline on server startup

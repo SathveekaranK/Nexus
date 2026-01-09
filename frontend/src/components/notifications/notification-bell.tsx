@@ -16,6 +16,8 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
 
+import { io } from "socket.io-client";
+
 export default function NotificationBell() {
     const { notifications, unreadCount } = useSelector((state: RootState) => state.notifications);
     const dispatch = useDispatch<AppDispatch>();
@@ -23,6 +25,25 @@ export default function NotificationBell() {
 
     useEffect(() => {
         dispatch(fetchNotifications());
+
+        // Connect to Socket for Notifications
+        const socket = io(import.meta.env.VITE_API_URL.replace('/api', ''), {
+            auth: { token: localStorage.getItem('token') }
+        });
+
+        socket.on('notification:new', (notification: any) => {
+            dispatch({
+                type: 'notifications/addNotification',
+                payload: notification
+            });
+            // Optional: Play sound
+            // new Audio('/notification.mp3').play().catch(() => {});
+        });
+
+        return () => {
+            socket.disconnect();
+        };
+
     }, [dispatch]);
 
     const handleNotificationClick = (notification: any) => {
