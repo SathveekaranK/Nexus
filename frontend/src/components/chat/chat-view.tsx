@@ -86,23 +86,29 @@ const ChatHeader = ({
   users,
   currentUser,
   onHeaderClick,
-  onViewPins
+  onViewPins,
+  searchText,
+  setSearchText,
 }: {
   channel: Channel;
   users: User[];
   currentUser: User;
   onHeaderClick: () => void;
   onViewPins: () => void;
+  searchText: string;
+  setSearchText: (v: string) => void;
 }) => {
-  const isDm = channel.type === 'dm';
+  const isDm = channel.type === "dm";
   let name = channel.name;
   let user: User | undefined;
   let avatar: string | undefined;
-  let fallback: string = '#';
+  let fallback: string = "#";
   const [isSearchVisible, setIsSearchVisible] = useState(false);
 
   if (isDm) {
-    const otherUserId = channel.memberIds?.find((id) => String(id) !== String(currentUser.id));
+    const otherUserId = channel.memberIds?.find(
+      (id) => String(id) !== String(currentUser.id)
+    );
     user = users.find((u) => String(u.id) === String(otherUserId));
     if (user) {
       name = user.name;
@@ -113,7 +119,10 @@ const ChatHeader = ({
 
   return (
     <header className="flex items-center justify-between p-4 border-b border-white/5 bg-background/80 backdrop-blur-xl h-16 md:h-auto transition-all">
-      <button className="flex items-center gap-3 truncate hover:opacity-80 transition-opacity" onClick={onHeaderClick}>
+      <button
+        className="flex items-center gap-3 truncate hover:opacity-80 transition-opacity"
+        onClick={onHeaderClick}
+      >
         {isDm && user ? (
           <div className="relative group">
             <Avatar className="ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all">
@@ -124,7 +133,12 @@ const ChatHeader = ({
               />
               <AvatarFallback>{fallback}</AvatarFallback>
             </Avatar>
-            <div className={cn("absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background shadow-lg", getStatusClasses(user.status))} />
+            <div
+              className={cn(
+                "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background shadow-lg",
+                getStatusClasses(user.status)
+              )}
+            />
           </div>
         ) : (
           <div className="p-2 bg-primary/10 rounded-lg ring-1 ring-primary/20">
@@ -133,27 +147,42 @@ const ChatHeader = ({
         )}
         <div className="truncate">
           <h2 className="text-lg font-bold text-foreground truncate">{name}</h2>
-          {isDm && user?.customStatus && <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            {user.customStatus}
-          </p>}
+          {isDm && user?.customStatus && (
+            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              {user.customStatus}
+            </p>
+          )}
         </div>
       </button>
 
       <div className="flex items-center gap-1">
         {isSearchVisible ? (
           <div className="relative">
-            <Input placeholder="Search..." className="h-9 pr-8 w-36 sm:w-auto" />
-            <button className="absolute right-2 top-1/2 -translate-y-1/2" onClick={() => setIsSearchVisible(false)}>
+            <Input
+              placeholder="Search..."
+              className="h-9 pr-8 w-36 sm:w-auto"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+
+            <button
+              className="absolute right-2 top-1/2 -translate-y-1/2"
+              onClick={() => setIsSearchVisible(false)}
+            >
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
           </div>
         ) : (
-          <Button variant="ghost" size="icon" onClick={() => setIsSearchVisible(true)} className="hidden sm:inline-flex">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSearchVisible(true)}
+            className="hidden sm:inline-flex"
+          >
             <Search />
           </Button>
-        )
-        }
+        )}
         <Button variant="ghost" size="icon">
           <Video />
         </Button>
@@ -342,14 +371,18 @@ export default function ChatView({
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const token = useSelector((state: RootState) => state.auth?.token);
-  const [messages, setMessages] = useState<Message[]>(initialMessages.map(m => ({
-    ...m,
-    // Safely handle populated senderId from backend
-    senderId: typeof m.senderId === 'object' ? (m.senderId as any)._id : m.senderId,
-    pinned: activeChannel.pinnedMessageIds?.includes(m.id)
-  })));
-
-  const [inputValue, setInputValue] = useState('');
+  const [messages, setMessages] = useState<Message[]>(
+    initialMessages.map((m) => ({
+      ...m,
+      // Safely handle populated senderId from backend
+      senderId:
+        typeof m.senderId === "object" ? (m.senderId as any)._id : m.senderId,
+      pinned: activeChannel.pinnedMessageIds?.includes(m.id),
+    }))
+  );
+  //  SEARCH STATE
+  const [searchText, setSearchText] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const { toast } = useToast();
 
   // Initialize Socket Presence
@@ -370,11 +403,15 @@ export default function ChatView({
   const handleLeaveChannel = async () => {
     try {
       await dispatch(leaveChannel(activeChannel.id)).unwrap();
-      toast({ title: 'Left channel successfully' });
+      toast({ title: "Left channel successfully" });
       setIsProfileDialogOpen(false);
-      navigate('/dms');
+      navigate("/dms");
     } catch (error: any) {
-      toast({ title: 'Failed to leave channel', description: error, variant: 'destructive' });
+      toast({
+        title: "Failed to leave channel",
+        description: error,
+        variant: "destructive",
+      });
     }
   };
 
@@ -390,7 +427,7 @@ export default function ChatView({
 
   // Mention state
   const [isMentionPopoverOpen, setIsMentionPopoverOpen] = useState(false);
-  const [mentionSearch, setMentionSearch] = useState('');
+  const [mentionSearch, setMentionSearch] = useState("");
   const mentionTriggerIndexRef = useRef(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -401,11 +438,11 @@ export default function ChatView({
     const socket = connectChatSocket(token);
 
     // Join the channel/DM room
-    if (activeChannel.type === 'channel') {
+    if (activeChannel.type === "channel") {
       joinChannel(activeChannel.id);
     } else {
       // For DMs, join with the actual user ID
-      const dmUserId = activeChannel.id.replace('dm-', '');
+      const dmUserId = activeChannel.id.replace("dm-", "");
       joinChannel(dmUserId);
     }
 
@@ -414,14 +451,16 @@ export default function ChatView({
       // Only add if not already in list (prevent duplicates)
       setMessages((prev) => {
         // 1. Exact ID check
-        if (prev.some(m => m.id === message._id || m.id === message.id)) return prev;
+        if (prev.some((m) => m.id === message._id || m.id === message.id))
+          return prev;
 
         // 2. Optimistic Deduction (replace temporary local msg with confirmed server msg)
         // Match by Sender + Content + isOptimistic (temp ID)
-        const optimisticIndex = prev.findIndex(m =>
-          m.content === message.content &&
-          m.senderId === (message.senderId?._id || message.senderId) &&
-          m.id.startsWith('msg-optimistic-')
+        const optimisticIndex = prev.findIndex(
+          (m) =>
+            m.content === message.content &&
+            m.senderId === (message.senderId?._id || message.senderId) &&
+            m.id.startsWith("msg-optimistic-")
         );
 
         const mappedMessage = {
@@ -431,7 +470,10 @@ export default function ChatView({
           timestamp: message.createdAt || new Date().toISOString(),
           reactions: message.reactions || [],
           attachments: message.attachments || [],
-          replyTo: typeof message.replyTo === 'object' ? (message.replyTo as any)._id : message.replyTo,
+          replyTo:
+            typeof message.replyTo === "object"
+              ? (message.replyTo as any)._id
+              : message.replyTo,
         };
 
         if (optimisticIndex !== -1) {
@@ -446,35 +488,40 @@ export default function ChatView({
 
       // Sound effect (only for others)
       if ((message.senderId?._id || message.senderId) !== currentUser.id) {
-        const audio = new Audio('/notification.mp3');
-        audio.play().catch(() => { });
+        const audio = new Audio("/notification.mp3");
+        audio.play().catch(() => {});
       }
     });
 
     // Listen for message sent confirmations (replace optimistic with real)
     const unsubscribeSent = onMessageSent(({ tempId, message }) => {
-      setMessages((prev) => prev.map(m => {
-        if (m.id === tempId) {
-          return {
-            ...message,
-            id: message._id || message.id,
-            senderId: message.senderId?._id || message.senderId,
-            timestamp: message.createdAt || new Date().toISOString(),
-            reactions: message.reactions || [],
-            attachments: message.attachments || [],
-            // Normalize replyTo to string ID if it's populated
-            replyTo: typeof message.replyTo === 'object' ? (message.replyTo as any)._id : message.replyTo,
-          };
-        }
-        return m;
-      }));
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id === tempId) {
+            return {
+              ...message,
+              id: message._id || message.id,
+              senderId: message.senderId?._id || message.senderId,
+              timestamp: message.createdAt || new Date().toISOString(),
+              reactions: message.reactions || [],
+              attachments: message.attachments || [],
+              // Normalize replyTo to string ID if it's populated
+              replyTo:
+                typeof message.replyTo === "object"
+                  ? (message.replyTo as any)._id
+                  : message.replyTo,
+            };
+          }
+          return m;
+        })
+      );
     });
 
     return () => {
-      if (activeChannel.type === 'channel') {
+      if (activeChannel.type === "channel") {
         leaveChatChannel(activeChannel.id);
       } else {
-        const dmUserId = activeChannel.id.replace('dm-', '');
+        const dmUserId = activeChannel.id.replace("dm-", "");
         leaveChatChannel(dmUserId);
       }
       unsubscribe();
@@ -483,21 +530,30 @@ export default function ChatView({
   }, [activeChannel?.id, token]);
 
   useEffect(() => {
-    setMessages(initialMessages.map(m => ({
-      ...m,
-      // Safely handle populated senderId from backend (fix for updates)
-      senderId: typeof m.senderId === 'object' ? (m.senderId as any)._id : m.senderId,
-      // Preserve populated sender data for fallback resolution
-      _populatedSender: typeof m.senderId === 'object' ? { ...(m.senderId as any), id: (m.senderId as any)._id } : undefined,
-      pinned: activeChannel.pinnedMessageIds?.includes(m.id),
-      // Normalize replyTo
-      replyTo: typeof m.replyTo === 'object' ? (m.replyTo as any)._id : m.replyTo,
-    })));
+    setMessages(
+      initialMessages.map((m) => ({
+        ...m,
+        // Safely handle populated senderId from backend (fix for updates)
+        senderId:
+          typeof m.senderId === "object" ? (m.senderId as any)._id : m.senderId,
+        // Preserve populated sender data for fallback resolution
+        _populatedSender:
+          typeof m.senderId === "object"
+            ? { ...(m.senderId as any), id: (m.senderId as any)._id }
+            : undefined,
+        pinned: activeChannel.pinnedMessageIds?.includes(m.id),
+        // Normalize replyTo
+        replyTo:
+          typeof m.replyTo === "object" ? (m.replyTo as any)._id : m.replyTo,
+      }))
+    );
   }, [initialMessages, activeChannel]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
-      const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      const viewport = scrollAreaRef.current.querySelector(
+        "[data-radix-scroll-area-viewport]"
+      );
       if (viewport) {
         viewport.scrollTop = viewport.scrollHeight;
       }
@@ -516,12 +572,18 @@ export default function ChatView({
     const cursorPosition = e.target.selectionStart || 0;
     const textBeforeCursor = value.substring(0, cursorPosition);
 
-    const atIndex = textBeforeCursor.lastIndexOf('@');
-    const spaceAfterAt = textBeforeCursor.indexOf(' ', atIndex);
+    const atIndex = textBeforeCursor.lastIndexOf("@");
+    const spaceAfterAt = textBeforeCursor.indexOf(" ", atIndex);
 
-    if (atIndex > -1 && (spaceAfterAt === -1 || spaceAfterAt > cursorPosition)) {
+    if (
+      atIndex > -1 &&
+      (spaceAfterAt === -1 || spaceAfterAt > cursorPosition)
+    ) {
       const potentialMatch = textBeforeCursor.substring(atIndex + 1);
-      if (!/\s/.test(potentialMatch) && (atIndex === 0 || /\s/.test(value.charAt(atIndex - 1)))) {
+      if (
+        !/\s/.test(potentialMatch) &&
+        (atIndex === 0 || /\s/.test(value.charAt(atIndex - 1)))
+      ) {
         setMentionSearch(potentialMatch);
         mentionTriggerIndexRef.current = atIndex;
         setIsMentionPopoverOpen(true);
@@ -533,13 +595,18 @@ export default function ChatView({
   };
 
   const handleMentionSelect = (user: User) => {
-    const textBeforeMention = inputValue.substring(0, mentionTriggerIndexRef.current);
-    const textAfterCursor = inputValue.substring(inputRef.current?.selectionStart || 0);
+    const textBeforeMention = inputValue.substring(
+      0,
+      mentionTriggerIndexRef.current
+    );
+    const textAfterCursor = inputValue.substring(
+      inputRef.current?.selectionStart || 0
+    );
 
     const newInputValue = `${textBeforeMention}@${user.name} ${textAfterCursor}`;
     setInputValue(newInputValue);
     setIsMentionPopoverOpen(false);
-    setMentionSearch('');
+    setMentionSearch("");
 
     setTimeout(() => {
       inputRef.current?.focus();
@@ -556,10 +623,14 @@ export default function ChatView({
   }, [dispatch]);
 
   const mentionableItems = useMemo(() => {
-    const userItems = users.filter((user) => user.id !== 'nexus-ai').map(u => ({ ...u, type: 'user' }));
+    const userItems = users
+      .filter((user) => user.id !== "nexus-ai")
+      .map((u) => ({ ...u, type: "user" }));
 
-    if (activeChannel.type === 'dm') {
-      const otherUserId = activeChannel.memberIds?.find(id => id !== currentUser.id);
+    if (activeChannel.type === "dm") {
+      const otherUserId = activeChannel.memberIds?.find(
+        (id) => id !== currentUser.id
+      );
       return userItems.filter(
         (user) => user.id === otherUserId || user.id === currentUser.id
       );
@@ -569,67 +640,75 @@ export default function ChatView({
     const roleItems = roles.map((r: any) => ({
       id: `role-${r.name}`, // prefix to avoid collision if needed, or just use name logic
       name: r.name,
-      type: 'role',
-      description: `${r.permissions?.length || 0} permissions`
+      type: "role",
+      description: `${r.permissions?.length || 0} permissions`,
     }));
 
     return [...userItems, ...roleItems];
   }, [activeChannel, users, currentUser.id, roles]);
 
-  const filteredMentions = mentionableItems.filter(item =>
+  const filteredMentions = mentionableItems.filter((item) =>
     item.name.toLowerCase().includes(mentionSearch.toLowerCase())
   );
 
   const sendMessage = async (
     content: string,
-    type: Message['type'] = 'text'
+    type: Message["type"] = "text"
   ) => {
     if (!content.trim()) return;
 
-    const isAiQuery = content.startsWith('@nexus');
+    const isAiQuery = content.startsWith("@nexus");
     const tempId = `msg-optimistic-${Date.now()}`;
 
     const userMessage: Message = {
       content,
       senderId: currentUser.id,
-      channelId: activeChannel.type === 'channel' ? activeChannel.id : undefined,
-      recipientId: activeChannel.type === 'dm' ? activeChannel.id.replace('dm-', '') : undefined,
+      channelId:
+        activeChannel.type === "channel" ? activeChannel.id : undefined,
+      recipientId:
+        activeChannel.type === "dm"
+          ? activeChannel.id.replace("dm-", "")
+          : undefined,
       type: type,
       replyTo: replyTo?.id,
       id: tempId,
       timestamp: new Date().toISOString(),
       reactions: [],
-      attachments: []
+      attachments: [],
     } as any;
 
     // Optimistic UI update
     setMessages((prev) => [...prev, userMessage]);
-    setInputValue('');
+    setInputValue("");
     setReplyTo(null);
 
     // Send via Socket.IO for instant delivery
     sendChatMessage({
       senderId: currentUser.id,
-      channelId: activeChannel.type === 'channel' ? activeChannel.id : undefined,
-      recipientId: activeChannel.type === 'dm' ? activeChannel.id.replace('dm-', '') : undefined,
+      channelId:
+        activeChannel.type === "channel" ? activeChannel.id : undefined,
+      recipientId:
+        activeChannel.type === "dm"
+          ? activeChannel.id.replace("dm-", "")
+          : undefined,
       content,
       type,
       replyTo: replyTo?.id,
-      tempId
+      tempId,
     });
 
     if (isAiQuery) {
       const botTypingMessage: Message = {
         id: `msg-typing-${Date.now()}`,
-        senderId: 'nexus-ai',
-        content: 'Nexus AI is thinking...',
+        senderId: "nexus-ai",
+        content: "Nexus AI is thinking...",
         timestamp: new Date().toISOString(),
         channelId: activeChannel.id,
-        type: 'bot',
+        type: "bot",
       };
       setMessages((prev) => [...prev, botTypingMessage]);
 
-      const query = content.replace('@nexus', '').trim();
+      const query = content.replace("@nexus", "").trim();
       const contextMessages = messages
         .slice(-50)
         .map(
@@ -641,11 +720,11 @@ export default function ChatView({
 
         const botMessage: Message = {
           id: `msg-bot-${Date.now()}`,
-          senderId: 'nexus-ai',
+          senderId: "nexus-ai",
           content: result.message,
           timestamp: new Date().toISOString(),
           channelId: activeChannel.id,
-          type: 'bot',
+          type: "bot",
         } as any;
 
         setMessages((prev) =>
@@ -655,12 +734,11 @@ export default function ChatView({
         await api.createMessage({
           content: result.message,
           channelId: activeChannel.id,
-          type: 'bot'
+          type: "bot",
         });
-
       } catch (error) {
         setMessages((prev) => prev.filter((m) => m.id !== botTypingMessage.id));
-        toast({ title: 'AI failed to respond', variant: 'destructive' });
+        toast({ title: "AI failed to respond", variant: "destructive" });
       }
     }
   };
@@ -673,10 +751,10 @@ export default function ChatView({
 
     const isExcel =
       file.type ===
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-      file.name.endsWith('.xlsx');
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      file.name.endsWith(".xlsx");
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
 
     if (isImage || isVideo) {
       const reader = new FileReader();
@@ -685,26 +763,25 @@ export default function ChatView({
         try {
           const uploadedFile = await api.uploadFile(file);
           const dataUri = uploadedFile.url; // Use the returned URL
-          const mediaType = isImage ? 'image' : 'video';
+          const mediaType = isImage ? "image" : "video";
           sendMessage(dataUri, mediaType);
         } catch (error) {
-          toast({ title: 'Upload failed', variant: 'destructive' });
+          toast({ title: "Upload failed", variant: "destructive" });
         }
       };
       reader.readAsDataURL(file);
     } else if (isExcel) {
-
       const reader = new FileReader();
       reader.onload = async (e) => {
         const dataUri = e.target?.result as string;
 
         const botTypingMessage: Message = {
           id: `msg-typing-${Date.now()}`,
-          senderId: 'nexus-ai',
+          senderId: "nexus-ai",
           content: `Nexus AI is analyzing the file...`,
           timestamp: new Date().toISOString(),
           channelId: activeChannel.id,
-          type: 'bot',
+          type: "bot",
         };
         setMessages((prev) => [...prev, botTypingMessage]);
 
@@ -714,11 +791,11 @@ export default function ChatView({
 
         const botMessage: Message = {
           id: `msg-bot-${Date.now()}`,
-          senderId: 'nexus-ai',
+          senderId: "nexus-ai",
           content: content,
           timestamp: new Date().toISOString(),
           channelId: activeChannel.id,
-          type: result.success ? 'bot' : 'text',
+          type: result.success ? "bot" : "text",
         };
         setMessages((prev) =>
           prev.filter((m) => m.id !== botTypingMessage.id).concat(botMessage)
@@ -727,13 +804,13 @@ export default function ChatView({
       reader.readAsDataURL(file);
     } else {
       toast({
-        title: 'Invalid File Type',
-        description: 'Please upload a .xlsx, image, or video file.',
-        variant: 'destructive',
+        title: "Invalid File Type",
+        description: "Please upload a .xlsx, image, or video file.",
+        variant: "destructive",
       });
     }
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -756,19 +833,19 @@ export default function ChatView({
 
         mediaRecorder.onstop = () => {
           const audioBlob = new Blob(audioChunksRef.current, {
-            type: 'audio/webm',
+            type: "audio/webm",
           });
           const audioUrl = URL.createObjectURL(audioBlob);
-          sendMessage(audioUrl, 'voice');
+          sendMessage(audioUrl, "voice");
           stream.getTracks().forEach((track) => track.stop());
         };
 
         mediaRecorder.start();
         setIsRecording(true);
-        toast({ title: 'Recording started...' });
+        toast({ title: "Recording started..." });
       } catch (error) {
-        console.error('Error accessing microphone:', error);
-        toast({ title: 'Microphone access denied', variant: 'destructive' });
+        console.error("Error accessing microphone:", error);
+        toast({ title: "Microphone access denied", variant: "destructive" });
       }
     }
   };
@@ -790,7 +867,6 @@ export default function ChatView({
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
     api.deleteMessage(messageId).catch(console.error);
   };
-
 
   const handleReactToMessage = (messageId: string, emoji: string) => {
     setMessages((prev) =>
@@ -829,19 +905,21 @@ export default function ChatView({
     let newPinnedIds: string[];
 
     if (isPinned) {
-      newPinnedIds = activeChannel.pinnedMessageIds?.filter(id => id !== message.id) || [];
-      toast({ title: 'Message unpinned' });
+      newPinnedIds =
+        activeChannel.pinnedMessageIds?.filter((id) => id !== message.id) || [];
+      toast({ title: "Message unpinned" });
     } else {
       newPinnedIds = [...(activeChannel.pinnedMessageIds || []), message.id];
-      toast({ title: 'Message pinned' });
+      toast({ title: "Message pinned" });
     }
 
-    setMessages(prev => prev.map(m => m.id === message.id ? { ...m, pinned: !isPinned } : m));
+    setMessages((prev) =>
+      prev.map((m) => (m.id === message.id ? { ...m, pinned: !isPinned } : m))
+    );
     if (onUpdateChannel) {
       onUpdateChannel({ ...activeChannel, pinnedMessageIds: newPinnedIds });
     }
     api.pinMessage(message.id).catch(console.error);
-
   };
 
   const getReplyingToUser = () => {
@@ -851,22 +929,34 @@ export default function ChatView({
 
   const getPinnedMessages = () => {
     if (!activeChannel.pinnedMessageIds) return [];
-    return messages.filter(m => activeChannel.pinnedMessageIds!.includes(m.id));
+    return messages.filter((m) =>
+      activeChannel.pinnedMessageIds!.includes(m.id)
+    );
   };
 
   const handleJumpToMessage = (messageId: string) => {
     setIsPinsDialogOpen(false);
     const messageElement = document.getElementById(`message-${messageId}`);
     if (messageElement) {
-      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
 
       // Highlight effect
-      messageElement.classList.add('bg-yellow-400/20', 'transition-all', 'duration-1000');
+      messageElement.classList.add(
+        "bg-yellow-400/20",
+        "transition-all",
+        "duration-1000"
+      );
       setTimeout(() => {
-        messageElement.classList.remove('bg-yellow-400/20');
+        messageElement.classList.remove("bg-yellow-400/20");
       }, 2000);
     }
   };
+  // FILTERED MESSAGES 
+  const filteredMessages = searchText
+    ? messages.filter((m) =>
+        m.content?.toLowerCase().includes(searchText.toLowerCase())
+      )
+    : messages;
 
   return (
     <div className="flex flex-col flex-1 h-full bg-background overflow-hidden">
@@ -876,16 +966,21 @@ export default function ChatView({
         currentUser={currentUser}
         onHeaderClick={() => setIsProfileDialogOpen(true)}
         onViewPins={() => setIsPinsDialogOpen(true)}
+        searchText={searchText}
+        setSearchText={setSearchText}
       />
+
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
         <div className="p-4 space-y-1">
-          {messages.map((msg) => {
+          {filteredMessages.map((msg) => {
             // Robust Sender Resolution: Users List -> Current User -> Populated Data -> Nexus AI
             const sender =
               users.find((u) => u.id === msg.senderId) ||
-              (String(msg.senderId) === String(currentUser.id) ? currentUser : null) ||
+              (String(msg.senderId) === String(currentUser.id)
+                ? currentUser
+                : null) ||
               (msg as any)._populatedSender ||
-              USERS.find((u) => u.id === 'nexus-ai')!;
+              USERS.find((u) => u.id === "nexus-ai")!;
 
             return (
               <MessageItem
@@ -903,7 +998,7 @@ export default function ChatView({
                 users={users}
                 allMessages={messages}
                 roles={roles}
-                isDm={activeChannel.type === 'dm'}
+                isDm={activeChannel.type === "dm"}
               />
             );
           })}
@@ -912,25 +1007,46 @@ export default function ChatView({
       <div className="p-4 relative z-20">
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none -z-10" />
 
-
-        <div className={cn(
-          "relative flex items-end gap-2 p-2 rounded-3xl bg-secondary/80 backdrop-blur-xl border border-white/10 shadow-2xl transition-all duration-300"
-        )}>
-
+        <div
+          className={cn(
+            "relative flex items-end gap-2 p-2 rounded-3xl bg-secondary/80 backdrop-blur-xl border border-white/10 shadow-2xl transition-all duration-300"
+          )}
+        >
           {/* File Uploads & Tools */}
           <div className="flex items-center gap-1 pb-1 pl-1">
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors" onClick={() => fileInputRef.current?.click()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
               <Paperclip className="h-5 w-5" />
             </Button>
-            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
 
-            <Popover open={isMentionPopoverOpen} onOpenChange={setIsMentionPopoverOpen}>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
+            <Popover
+              open={isMentionPopoverOpen}
+              onOpenChange={setIsMentionPopoverOpen}
+            >
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors hidden sm:inline-flex">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors hidden sm:inline-flex"
+                >
                   <Hash className="h-5 w-5" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 p-0 bg-background/95 backdrop-blur-xl border-white/10" align="start">
+              <PopoverContent
+                className="w-64 p-0 bg-background/95 backdrop-blur-xl border-white/10"
+                align="start"
+              >
                 <Command>
                   <CommandList>
                     <CommandGroup heading="Suggestions">
@@ -940,18 +1056,24 @@ export default function ChatView({
                           onSelect={() => handleMentionSelect(item)}
                           className="flex items-center gap-2 cursor-pointer"
                         >
-                          {item.type === 'role' ? (
+                          {item.type === "role" ? (
                             <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
                               <Hash className="h-4 w-4 text-primary" />
                             </div>
                           ) : (
                             <Avatar className="h-6 w-6">
                               <AvatarImage src={item.avatar} />
-                              <AvatarFallback>{item.name.charAt(0)}</AvatarFallback>
+                              <AvatarFallback>
+                                {item.name.charAt(0)}
+                              </AvatarFallback>
                             </Avatar>
                           )}
                           <span>{item.name}</span>
-                          {item.type === 'role' && <span className="ml-auto text-xs text-muted-foreground">Role</span>}
+                          {item.type === "role" && (
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              Role
+                            </span>
+                          )}
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -968,11 +1090,22 @@ export default function ChatView({
                 <div className="flex items-center gap-3 text-xs text-muted-foreground truncate flex-1 min-w-0">
                   <div className="w-1 h-8 bg-primary rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
                   <div className="flex-1 truncate">
-                    <p className="font-bold text-primary mb-0.5">Replying to {users.find(u => u.id === replyTo.senderId)?.name || 'Someone'}</p>
-                    <p className="truncate opacity-80 italic">"{replyTo.content}"</p>
+                    <p className="font-bold text-primary mb-0.5">
+                      Replying to{" "}
+                      {users.find((u) => u.id === replyTo.senderId)?.name ||
+                        "Someone"}
+                    </p>
+                    <p className="truncate opacity-80 italic">
+                      "{replyTo.content}"
+                    </p>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-white/10" onClick={() => setReplyTo(null)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-white/10"
+                  onClick={() => setReplyTo(null)}
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -984,7 +1117,7 @@ export default function ChatView({
               placeholder={`Message #${activeChannel.name}...`}
               className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-2 py-3 min-h-[44px] max-h-[120px] resize-none text-base placeholder:text-muted-foreground/50"
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !isMentionPopoverOpen) {
+                if (e.key === "Enter" && !e.shiftKey && !isMentionPopoverOpen) {
                   e.preventDefault();
                   sendMessage(inputValue);
                 }
@@ -998,7 +1131,12 @@ export default function ChatView({
               <Button
                 variant="ghost"
                 size="icon"
-                className={cn("h-9 w-9 rounded-full transition-all", isRecording ? "bg-red-500/20 text-red-500 animate-pulse" : "hover:bg-white/10 text-muted-foreground")}
+                className={cn(
+                  "h-9 w-9 rounded-full transition-all",
+                  isRecording
+                    ? "bg-red-500/20 text-red-500 animate-pulse"
+                    : "hover:bg-white/10 text-muted-foreground"
+                )}
                 onClick={handleVoiceMessage}
               >
                 <Mic className="h-5 w-5" />
@@ -1025,15 +1163,13 @@ export default function ChatView({
         onViewProfile={handleViewProfile}
         onLeave={handleLeaveChannel}
       />
-      {
-        viewedUser && (
-          <UserProfileDialog
-            user={viewedUser}
-            isOpen={!!viewedUser}
-            onOpenChange={() => setViewedUser(null)}
-          />
-        )
-      }
+      {viewedUser && (
+        <UserProfileDialog
+          user={viewedUser}
+          isOpen={!!viewedUser}
+          onOpenChange={() => setViewedUser(null)}
+        />
+      )}
       <PinnedMessagesDialog
         isOpen={isPinsDialogOpen}
         onOpenChange={setIsPinsDialogOpen}
@@ -1041,6 +1177,6 @@ export default function ChatView({
         users={users}
         onJumpToMessage={handleJumpToMessage}
       />
-    </div >
+    </div>
   );
 }
