@@ -90,7 +90,17 @@ const channelSlice = createSlice({
 
             // Update last activity for sorting
             if (channelId) {
-                state.lastActivity[channelId] = timestamp || new Date().toISOString();
+                const idStr = typeof channelId === 'string' ? channelId : (channelId as any).toString();
+                state.lastActivity[idStr] = timestamp || new Date().toISOString();
+
+                // Re-sort channels based on new activity
+                // We need to move the active channel to the top
+                // Or rather, sort the entire array based on lastActivity
+                state.channels.sort((a, b) => {
+                    const timeA = state.lastActivity[a.id] || a.createdAt || '';
+                    const timeB = state.lastActivity[b.id] || b.createdAt || '';
+                    return new Date(timeB).getTime() - new Date(timeA).getTime();
+                });
             }
 
             // Increment unread count if:

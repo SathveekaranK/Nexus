@@ -43,6 +43,7 @@ function VoiceChatInner() {
         };
     }, [localMicrophoneTrack]);
 
+
     // 2. Join Channel
     // Channel name must be string.
     const { isLoading: isJoining, isConnected, error: joinError } = useJoin(
@@ -54,6 +55,22 @@ function VoiceChatInner() {
         },
         !!roomId && !!APP_ID
     );
+
+    // Debug: Listen for Agora SDK Exceptions
+    useEffect(() => {
+        // We need to access the client instance. 
+        // Since we are inside AgoraRTCProvider, we can't easily get the client object directly here without `useRTCClient` (if available) or passing it down.
+        // However, 'agora-rtc-react' provides hooks. 
+        // A common pattern to debug client events is to use the client object itself.
+        // But `VoiceChatInner` doesn't receive `client`.
+        // Let's assume standard behavior for now, but to really debug "701", we generally need `client.on("exception")`.
+        // We will modify the parent component to attach the listener or use a hook if available.
+        // Actually, `useJoin` handles the join logic. `usePrepareComponent` might be useful but let's stick to what we have.
+
+        if (joinError) {
+            console.error("Agora Join Error:", joinError);
+        }
+    }, [joinError]);
 
     // 3. Publish Mic
     usePublish([localMicrophoneTrack]);
@@ -100,7 +117,7 @@ function VoiceChatInner() {
     };
 
     // Connection Status Text
-    const statusText = isJoining ? "Joining..." : isConnected ? "Connected" : joinError ? "Error" : "Disconnected";
+    const statusText = isJoining ? "Joining..." : isConnected ? "Connected" : joinError ? `Error: ${joinError.message || joinError.name}` : "Disconnected";
     // Count only if connected
     const activeListenerCount = isConnected ? remoteUsers.length : 0;
 
@@ -164,6 +181,22 @@ function VoiceChatInner() {
 export default function VoiceChat() {
     // Create client once using useMemo to prevent recreation on re-renders
     const client = useMemo(() => AgoraRTC.createClient({ mode: "rtc", codec: "vp8" }), []);
+
+    useEffect(() => {
+        const handleException = (event: any) => {
+            console.warn("Agora SDK Exception:", event);
+            // Specifically log 701 errors for visibility
+            if (event.code === 701) {
+                console.error("Agora ICE Error 701: Network blocking or Firewall issue detected. Check VPN/Firewall settings.");
+            }
+        };
+
+        client.on("exception", handleException);
+
+        return () => {
+            client.off("exception", handleException);
+        };
+    }, [client]);
 
     return (
         <AgoraRTCProvider client={client}>

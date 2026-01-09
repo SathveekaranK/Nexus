@@ -9,9 +9,10 @@ import NewChannelDialog from '../channel/new-channel-dialog';
 import { Link, useLocation } from 'react-router-dom';
 import MobileNav from './mobile-nav';
 import BottomNav from './bottom-nav';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { addNotification } from '@/services/notification/notificationSlice';
 import { Separator } from '../ui/separator';
+import { RootState } from '@/store/store';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -107,26 +108,35 @@ export default function MainLayout({
         let targetChannelId = message.channelId;
 
         if (!targetChannelId && message.recipientId) {
-          // It's a DM. 
-          // If I am the sender, the "channel" is the recipient.
-          // If I am the recipient, the "channel" is the sender.
-          const myId = currentUser.id;
-          const senderId = message.senderId._id || message.senderId;
+          // Helper to safely get string ID
+          const getStrId = (id: any) => {
+            if (typeof id === 'string') return id;
+            if (id?._id) return id._id.toString();
+            return id?.toString() || '';
+          };
 
-          if (senderId === myId) {
-            targetChannelId = message.recipientId;
+          const myId = currentUser.id;
+          const senderIdStr = getStrId(message.senderId);
+          const recipientIdStr = getStrId(message.recipientId);
+
+          if (senderIdStr === myId) {
+            targetChannelId = recipientIdStr;
           } else {
-            targetChannelId = senderId;
+            targetChannelId = senderIdStr;
           }
         }
 
         import('@/services/channel/channelSlice').then(({ handleNewMessage }) => {
+          const getStrId = (id: any) => typeof id === 'string' ? id : (id?._id?.toString() || id?.toString());
+
+          const finalChannelId = getStrId(targetChannelId);
+
           dispatch(handleNewMessage({
-            channelId: targetChannelId,
-            senderId: message.senderId._id || message.senderId,
+            channelId: finalChannelId,
+            senderId: getStrId(message.senderId),
             timestamp: message.createdAt || new Date().toISOString(),
             currentUserId: currentUser.id,
-            activeChannelId // from MainLayout scope
+            activeChannelId
           }));
         });
       });
@@ -152,6 +162,8 @@ export default function MainLayout({
     // Channel creation handled via Redux in dialog
   };
 
+  const { lastActivity } = useSelector((state: RootState) => state.channels);
+
   const { filteredDMs, filteredChannels } = useMemo(() => {
     // Show ALL users as DMs options, INCLUDING current user (for self-messaging)
     const dms: ChannelType[] = users
@@ -160,29 +172,43 @@ export default function MainLayout({
         name: u.id === currentUser.id ? `${u.name} (you)` : u.name,
         type: 'dm',
         memberIds: [currentUser.id, u.id],
-        sortTime: (u as any).sortTime, // Pass sorting data
+        sortTime: lastActivity[u.id] || (u as any).sortTime || (u as any).createdAt,
         lastMessage: (u as any).lastMessage // Pass preview data
       }));
 
-    const channels = allChannels.filter((c) => c.type === 'channel');
+    const channels = allChannels.filter((c) => c.type === 'channel')
+      .map(c => ({
+        ...c,
+        sortTime: lastActivity[c.id] || c.lastMessageAt || c.createdAt
+      }));
+
+    // SORT FUNC
+    const sortByTime = (a: any, b: any) => {
+      const timeA = new Date(a.sortTime || 0).getTime();
+      const timeB = new Date(b.sortTime || 0).getTime();
+      return timeB - timeA;
+    };
+
+    let sortedDMs = dms.sort(sortByTime);
+    let sortedChannels = channels.sort(sortByTime);
 
     if (!searchTerm) {
-      return { filteredDMs: dms, filteredChannels: channels };
+      return { filteredDMs: sortedDMs, filteredChannels: sortedChannels };
     }
 
     const lowercasedSearch = searchTerm.toLowerCase();
 
-    const filteredDMs = dms.filter((c) => {
+    sortedDMs = sortedDMs.filter((c) => {
       // For our virtual DMs, the name IS the user name
       return c.name.toLowerCase().includes(lowercasedSearch);
     });
 
-    const filteredChannels = channels.filter((c) =>
+    sortedChannels = sortedChannels.filter((c) =>
       c.name.toLowerCase().includes(lowercasedSearch)
     );
 
-    return { filteredDMs, filteredChannels };
-  }, [allChannels, users, searchTerm, currentUser.id]);
+    return { filteredDMs: sortedDMs, filteredChannels: sortedChannels };
+  }, [allChannels, users, searchTerm, currentUser.id, lastActivity]);
 
   const renderChannelList = (isMobile: boolean = false) => {
     const props = {

@@ -9,6 +9,7 @@ import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 import { Search, Hash, PlusCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const getStatusClasses = (status: User['status']) => {
   switch (status) {
@@ -47,68 +48,8 @@ export default function ChannelList({
 
   const { unreadCounts, lastActivity } = useSelector((state: RootState) => state.channels);
 
-  // Sorting Logic
-  const sortedChannels = [...channels].sort((a, b) => {
-    // 1. Redux Real-time Activity (Highest Priority)
-    const timeA = lastActivity[a.id] ? new Date(lastActivity[a.id]).getTime() : 0;
-    const timeB = lastActivity[b.id] ? new Date(lastActivity[b.id]).getTime() : 0;
-
-    if (timeA !== timeB) {
-      return timeB - timeA;
-    }
-
-    // 2. Backend provided sort (Initial Load)
-    // For Channels: 'lastMessageAt'
-    // For DMs (Users): 'sortTime' or implicit order from backend array
-
-    // We can try to rely on the array order if it came sorted from backend
-    // BUT 'channels' prop here is 'filteredDMs' or 'filteredChannels' from MainLayout
-    // MainLayout creates 'filteredDMs' via map, which PRESERVES order of 'users'.
-    // 'users' from Redux IS sorted by backend.
-
-    // So if we just DON'T sort when times are equal/zero, we preserve backend order?
-    // The previous sort callback returns 0 if times are 0, which preserves order in stable sort.
-    // However, let's be explicit if we can. 
-
-    // Actually, the previous code: `return timeB - timeA`
-    // If both are 0, it returns 0.
-    // JS sort is stable in modern browsers.
-    // So if Redux has no activity, it respects the input array order.
-
-    // ISSUE: 'lastActivity' might be sparsely populated?
-    // Or maybe 'channels' prop (filteredDMs) is NOT in order?
-
-    // Let's check MainLayout 'users' source. 
-    // It comes from props `users`.
-    // In App.tsx: `users` comes from `useSelector((state: RootState) => state.users)`.
-    // In userSlice: `state.users = action.payload`.
-    // So it should be sorted.
-
-    // If it's not working, maybe `timeA` and `timeB` are effectively 0 for everyone?
-    // And if `lastActivity` is 0, we return 0.
-
-    // Wait, let's look at `renderDMs`.
-    // It iterates `sortedChannels`.
-
-    // If I want to force the backend sort, I should trust the input array order for the initial state.
-    // But verify if `filteredDMs` construction in MainLayout reorders? 
-    // `users.map(...)` preserves order.
-
-    // Let's look at MainLayout prop `allChannels`.
-    // `channels` (the real ones) are sorted by `getUserChannelsInternal` (aggregation).
-
-    // Is it possible `lastActivity` has OLD values?
-    // Or maybe `sortedChannels` logic is flawed?
-
-    // Let's add a robust fallback to the object's own timestamp properties if valid.
-    const lastMsgA = (a as any).lastMessageAt || (a as any).sortTime || 0;
-    const lastMsgB = (b as any).lastMessageAt || (b as any).sortTime || 0;
-
-    const dbTimeA = new Date(lastMsgA).getTime();
-    const dbTimeB = new Date(lastMsgB).getTime();
-
-    return dbTimeB - dbTimeA;
-  });
+  // Trust the order passed from MainLayout
+  const sortedChannels = channels;
 
   const getUserForDM = (channel: Channel) => {
     const otherUserId = channel.memberIds?.find((id) => id !== currentUser.id);
@@ -123,44 +64,55 @@ export default function ChannelList({
         {/* Optional: Total Unread for DMs */}
       </h3>
       <div className="flex flex-col gap-1">
-        {sortedChannels.map((channel) => {
-          const user = getUserForDM(channel);
-          if (!user) return null;
-          const unread = unreadCounts[channel.id] || 0;
+        <AnimatePresence initial={false} mode="popLayout">
+          {sortedChannels.map((channel) => {
+            const user = getUserForDM(channel);
+            if (!user) return null;
+            const unread = unreadCounts[channel.id] || 0;
 
-          return (
-            <Link key={channel.id} to={`/dms/${channel.id}`}>
-              <Button
-                variant="ghost"
-                className={cn(
-                  'w-full justify-between gap-2 transition-all duration-200 hover:translate-x-1 pr-2',
-                  activeChannel?.id === channel.id &&
-                  'bg-primary/20 text-foreground border-l-2 border-primary shadow-lg shadow-primary/10'
-                )}
+            return (
+              <motion.div
+                key={channel.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
               >
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <div className="relative group flex-shrink-0">
-                    <Avatar className="h-6 w-6 ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
-                      <AvatarImage
-                        src={user.avatar}
-                        alt={user.name}
-                        data-ai-hint="person portrait"
-                      />
-                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className={cn("absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background shadow-sm", getStatusClasses(user.status))} />
-                  </div>
-                  <span className="truncate">{channel.name}</span>
-                </div>
-                {unread > 0 && (
-                  <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                    {unread > 99 ? '99+' : unread}
-                  </span>
-                )}
-              </Button>
-            </Link>
-          );
-        })}
+                <Link to={`/dms/${channel.id}`}>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      'w-full justify-between gap-2 transition-all duration-200 hover:translate-x-1 pr-2',
+                      activeChannel?.id === channel.id &&
+                      'bg-primary/20 text-foreground border-l-2 border-primary shadow-lg shadow-primary/10'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <div className="relative group flex-shrink-0">
+                        <Avatar className="h-6 w-6 ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
+                          <AvatarImage
+                            src={user.avatar}
+                            alt={user.name}
+                            data-ai-hint="person portrait"
+                          />
+                          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className={cn("absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background shadow-sm", getStatusClasses(user.status))} />
+                      </div>
+                      <span className="truncate">{channel.name}</span>
+                    </div>
+                    {unread > 0 && (
+                      <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                        {unread > 99 ? '99+' : unread}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -181,31 +133,42 @@ export default function ChannelList({
         </Button>
       </div>
       <div className="flex flex-col gap-1">
-        {sortedChannels.map((channel) => {
-          const unread = unreadCounts[channel.id] || 0;
-          return (
-            <Link key={channel.id} to={`/channels/${channel.id}`}>
-              <Button
-                variant="ghost"
-                className={cn(
-                  'w-full justify-between gap-2 transition-all duration-200 hover:translate-x-1 group pr-2',
-                  activeChannel?.id === channel.id &&
-                  'bg-primary/20 text-foreground border-l-2 border-primary shadow-lg shadow-primary/10'
-                )}
+        <AnimatePresence initial={false} mode="popLayout">
+          {sortedChannels.map((channel) => {
+            const unread = unreadCounts[channel.id] || 0;
+            return (
+              <motion.div
+                key={channel.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
               >
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <Hash className="h-4 w-4 group-hover:text-primary transition-colors flex-shrink-0" />
-                  <span className="truncate">{channel.name}</span>
-                </div>
-                {unread > 0 && (
-                  <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                    {unread > 99 ? '99+' : unread}
-                  </span>
-                )}
-              </Button>
-            </Link>
-          )
-        })}
+                <Link to={`/channels/${channel.id}`}>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      'w-full justify-between gap-2 transition-all duration-200 hover:translate-x-1 group pr-2',
+                      activeChannel?.id === channel.id &&
+                      'bg-primary/20 text-foreground border-l-2 border-primary shadow-lg shadow-primary/10'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <Hash className="h-4 w-4 group-hover:text-primary transition-colors flex-shrink-0" />
+                      <span className="truncate">{channel.name}</span>
+                    </div>
+                    {unread > 0 && (
+                      <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                        {unread > 99 ? '99+' : unread}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
+              </motion.div>
+            )
+          })}
+        </AnimatePresence>
       </div>
     </div>
   );

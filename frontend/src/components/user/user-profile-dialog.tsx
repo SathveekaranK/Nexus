@@ -80,15 +80,30 @@ export default function UserProfileDialog({
             {statusDisplay.text}
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">
-            Contact Information
-          </h3>
+        <div className="py-4 space-y-4">
+          {user.bio && (
+            <div className="bg-white/5 p-3 rounded-lg border border-white/10">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">About</h4>
+              <p className="text-sm italic text-white/90">"{user.bio}"</p>
+            </div>
+          )}
+
           <div className="space-y-2">
-            <p className="text-sm">
-              Email: {user.name.toLowerCase().replace(' ', '.')}@nexus.com
+            <h3 className="text-sm font-semibold text-muted-foreground">Contact Information</h3>
+            <p className="text-sm flex items-center gap-2">
+              <span className="text-muted-foreground">Email:</span>
+              {user.email || `${user.name.toLowerCase().replace(' ', '.')}@nexus.com`}
             </p>
-            <p className="text-sm">Timezone: (Placeholder)</p>
+            <p className="text-sm flex items-center gap-2">
+              <span className="text-muted-foreground">Status:</span>
+              <span className={cn("text-xs px-2 py-0.5 rounded-full border",
+                user.status === 'online' ? "bg-green-500/10 border-green-500/20 text-green-400" :
+                  user.status === 'dnd' ? "bg-red-500/10 border-red-500/20 text-red-400" :
+                    "bg-gray-500/10 border-gray-500/20 text-gray-400"
+              )}>
+                {statusDisplay.text}
+              </span>
+            </p>
           </div>
         </div>
         <div className="flex justify-center gap-2">
