@@ -125,6 +125,11 @@ export const createNotification = async (
             ...metadata
         });
         await notification.save();
+
+        // Emit real-time event
+        const { socketEvents } = require('../services/socketEvents');
+        socketEvents.emit('notification:new', { userId, notification });
+
         return notification;
     } catch (error) {
         console.error('Error creating notification:', error);

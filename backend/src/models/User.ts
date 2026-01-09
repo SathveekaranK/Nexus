@@ -10,6 +10,16 @@ const userSchema = new mongoose.Schema({
     status: { type: String, default: 'online' },
     roles: [{ type: String, default: 'member' }],
     channels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Channel' }],
+    // AI Context Fields
+    inferredSkills: [{
+        skill: { type: String },
+        confidence: { type: Number }
+    }],
+    activityMetrics: {
+        lastActive: { type: Date },
+        messageCount: { type: Number, default: 0 }
+    },
+    lastMessageAt: { type: Date, default: Date.now, index: true }
 }, { timestamps: true });
 
 // Hash password before saving

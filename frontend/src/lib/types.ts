@@ -40,6 +40,8 @@ export interface Channel {
   memberIds?: string[];
   description?: string;
   pinnedMessageIds?: string[];
+  createdAt?: string;
+  lastMessageAt?: string;
 }
 
 export interface CalendarEvent {

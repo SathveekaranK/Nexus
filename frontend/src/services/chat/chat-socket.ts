@@ -14,6 +14,8 @@ export interface ChatMessage {
     createdAt?: string;
 }
 
+const pendingListeners: Array<{ event: string, callback: any }> = [];
+
 export const connectChatSocket = (token: string) => {
     if (chatSocket?.connected) return chatSocket;
 
@@ -24,6 +26,13 @@ export const connectChatSocket = (token: string) => {
 
     chatSocket.on('connect', () => {
         // Connected
+        // Attach pending listeners
+        while (pendingListeners.length > 0) {
+            const listener = pendingListeners.shift();
+            if (listener) {
+                chatSocket?.on(listener.event, listener.callback);
+            }
+        }
     });
 
     chatSocket.on('disconnect', () => {
@@ -31,6 +40,25 @@ export const connectChatSocket = (token: string) => {
     });
 
     return chatSocket;
+};
+
+const addListener = (event: string, callback: any) => {
+    if (chatSocket) {
+        chatSocket.on(event, callback);
+    } else {
+        pendingListeners.push({ event, callback });
+    }
+};
+
+const removeListener = (event: string, callback: any) => {
+    if (chatSocket) {
+        chatSocket.off(event, callback);
+    }
+    // Remove from pending if exists
+    const index = pendingListeners.findIndex(l => l.event === event && l.callback === callback);
+    if (index !== -1) {
+        pendingListeners.splice(index, 1);
+    }
 };
 
 export const joinChannel = (channelId: string) => {
@@ -58,30 +86,23 @@ export const markMessageRead = (messageId: string, userId: string) => {
 };
 
 export const onNewMessage = (callback: (message: any) => void) => {
-    chatSocket?.on('message:new', callback);
-    return () => chatSocket?.off('message:new', callback);
+    addListener('message:new', callback);
+    return () => removeListener('message:new', callback);
 };
 
 export const onUserTyping = (callback: (data: { userId: string; userName: string; channelId: string }) => void) => {
-    chatSocket?.on('message:typing', callback);
-    return () => chatSocket?.off('message:typing', callback);
+    addListener('message:typing', callback);
+    return () => removeListener('message:typing', callback);
 };
 
 export const onUserStopTyping = (callback: (data: { userId: string; channelId: string }) => void) => {
-    chatSocket?.on('message:typing_stop', callback);
-    return () => chatSocket?.off('message:typing_stop', callback);
+    addListener('message:typing_stop', callback);
+    return () => removeListener('message:typing_stop', callback);
 };
 
 export const onMessageSent = (callback: (data: { tempId?: string; message: any }) => void) => {
-    // Backend returns the message in the callback of emit, but strict socket logic might use an ack event.
-    // However, our backend *returns* the data in the callback. 
-    // The current 'onMessageSent' usage in chat-view expects an event.
-    // For now, let's keep it but arguably we should rely on the emit callback in chat-view?
-    // Changing chat-view is risky. Let's make sure backend matches this if needed, 
-    // OR just use 'message:new' for everything and standard ack.
-    // For now, renaming to potentially match a future backend event or just keeping it.
-    chatSocket?.on('message:sent', callback);
-    return () => chatSocket?.off('message:sent', callback);
+    addListener('message:sent', callback);
+    return () => removeListener('message:sent', callback);
 };
 
 export const disconnectChatSocket = () => {
@@ -96,8 +117,8 @@ export const setupSocket = (userId: string) => {
 };
 
 export const onUserStatusChange = (callback: (data: { userId: string; status: string }) => void) => {
-    chatSocket?.on('user:status_change', callback);
-    return () => chatSocket?.off('user:status_change', callback);
+    addListener('user:status_change', callback);
+    return () => removeListener('user:status_change', callback);
 };
 
 export const getChatSocket = () => chatSocket;
