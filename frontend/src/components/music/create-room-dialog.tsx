@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,6 +32,9 @@ export default function CreateRoomDialog({ isOpen, onOpenChange, onCreate, isLoa
                         <Music className="h-5 w-5 text-primary" />
                         Create Music Room
                     </DialogTitle>
+                    <DialogDescription>
+                        Start a new listening party. Choose a name and vibe.
+                    </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="space-y-2">

@@ -73,7 +73,24 @@ const roomSlice = createSlice({
             };
         },
         updateMembers: (state, action) => {
-            state.members = action.payload;
+            // Merge new members with existing state to preserve ephemeral 'isMuted' property
+            const newMembers = action.payload;
+            state.members = newMembers.map((newM: any) => {
+                const existing = state.members.find((cur: any) =>
+                    (cur._id === newM._id) || (cur.id === newM._id)
+                );
+                // Default to true (Muted) if new, or preserve existing
+                return {
+                    ...newM,
+                    isMuted: existing ? existing.isMuted : true
+                };
+            });
+        },
+        updateMemberStatus: (state, action) => {
+            const { userId, isMuted } = action.payload;
+            state.members = state.members.map(m =>
+                (m._id === userId || m.id === userId) ? { ...m, isMuted } : m
+            );
         },
         leaveRoom: (state) => {
             state.roomId = null;
@@ -84,17 +101,19 @@ const roomSlice = createSlice({
     extraReducers: (builder) => {
         builder
             .addCase(createRoom.fulfilled, (state, action) => {
-                state.roomId = action.payload.roomId;
-                state.members = action.payload.members;
-                state.currentMedia = action.payload.currentMedia;
+                const room = action.payload.data || action.payload; // Handle wrapper
+                state.roomId = room.roomId;
+                state.members = room.members || [];
+                state.currentMedia = room.currentMedia || initialState.currentMedia;
             })
             .addCase(joinRoom.fulfilled, (state, action) => {
-                state.roomId = action.payload.roomId;
-                state.members = action.payload.members;
-                state.currentMedia = action.payload.currentMedia;
+                const room = action.payload.data || action.payload; // Handle wrapper
+                state.roomId = room.roomId;
+                state.members = room.members || [];
+                state.currentMedia = room.currentMedia || initialState.currentMedia;
             });
     }
 });
 
-export const { setRoomId, updateMedia, updateMembers, leaveRoom } = roomSlice.actions;
+export const { setRoomId, updateMedia, updateMembers, updateMemberStatus, leaveRoom } = roomSlice.actions;
 export default roomSlice.reducer;

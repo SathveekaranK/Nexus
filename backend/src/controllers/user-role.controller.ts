@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { User } from '../models/User';
-import { AuthRequest } from '../middleware/auth.middleware';
+import { AuthRequest } from '../middleware/auth';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 

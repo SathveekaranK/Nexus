@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Event } from '../models/Event';
-import { AuthRequest } from '../middleware/auth.middleware';
+import { AuthRequest } from '../middleware/auth';
 import { createNotification } from './notification.controller';
 
 /**

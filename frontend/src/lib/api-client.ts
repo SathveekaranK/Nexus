@@ -90,6 +90,7 @@ export const api = {
 
     // --- MUSIC (Keep REST) ---
     addSong: (roomId: string, song: any) => apiFromAxios.post(`/music/${roomId}/songs`, song) as unknown as Promise<any>,
+    searchYouTube: (query: string) => apiFromAxios.get(`/youtube/search?q=${encodeURIComponent(query)}`) as unknown as Promise<{ success: boolean; data: any[] }>,
 
     // --- ROOMS (Keep REST) ---
     createRoom: (data?: { name?: string; genre?: string }) => apiFromAxios.post<{ roomId: string; members: string[]; currentMedia: any }>('/rooms/create', data) as unknown as Promise<{ roomId: string; members: string[]; currentMedia: any }>,

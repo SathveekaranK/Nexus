@@ -19,6 +19,9 @@ export default function YouTubePlayer() {
 
     const videoId = currentMedia.url ? getVideoId(currentMedia.url) : null;
 
+    // Debug Logging
+    console.log("YouTube Player Debug:", { videoId, currentMedia });
+
     const handlePlayPause = () => {
         if (!socket) return;
         if (currentMedia.isPlaying) {
@@ -38,7 +41,8 @@ export default function YouTubePlayer() {
     }
 
     // Build YouTube embed URL
-    const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=${currentMedia.isPlaying ? 1 : 0}&controls=1&modestbranding=1&rel=0`;
+    // controls=0 to prevent desync (user must use our synced buttons)
+    const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=${currentMedia.isPlaying ? 1 : 0}&controls=0&disablekb=1&modestbranding=1&rel=0`;
 
     return (
         <div className="space-y-4">
@@ -47,11 +51,28 @@ export default function YouTubePlayer() {
                     src={embedUrl}
                     width="100%"
                     height="100%"
-                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                     title={currentMedia.title}
                 />
+
+                {/* Play/Pause Toggle Overlay */}
+                <div
+                    className="absolute inset-0 z-20 flex items-center justify-center bg-black/0 hover:bg-black/30 transition-all cursor-pointer group"
+                    onClick={handlePlayPause}
+                >
+                    {/* Show Play icon if paused, Pause icon if playing (on hover) */}
+                    {!currentMedia.isPlaying ? (
+                        <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center scale-100 transition-transform">
+                            <Play className="h-8 w-8 text-white fill-current translate-x-1" />
+                        </div>
+                    ) : (
+                        <div className="h-16 w-16 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all">
+                            <Pause className="h-8 w-8 text-white fill-current" />
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="flex items-center justify-between bg-card p-4 rounded-lg border">

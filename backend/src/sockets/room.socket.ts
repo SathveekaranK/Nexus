@@ -8,6 +8,7 @@ export const roomSocketHandler = (io: Server) => {
 
 
         socket.on('join_room', async ({ roomId, user }) => {
+            console.log(`[Socket] join_room request: Room=${roomId}, User=${user?.name || 'Unknown'}`);
             try {
                 const userId = user.id || user._id; // Handle both id formats
                 socket.join(roomId);
@@ -15,6 +16,8 @@ export const roomSocketHandler = (io: Server) => {
                 // Store in socket data for disconnect handling
                 socket.data.userId = userId;
                 socket.data.roomId = roomId;
+
+                console.log(`[Socket] User ${userId} joined room channel ${roomId}`);
 
                 // Update room members
                 const room = await Room.findOneAndUpdate(
@@ -31,38 +34,44 @@ export const roomSocketHandler = (io: Server) => {
                     if (room.currentMedia) {
                         socket.emit('sync_media', room.currentMedia);
                     }
+                } else {
+                    console.warn(`[Socket] Room ${roomId} not found in DB!`);
                 }
             } catch (error) {
-                // Silent error handling
+                console.error("[Socket] join_room error:", error);
             }
         });
 
         socket.on('leave_room', async ({ roomId, userId }) => {
+            console.log(`[Socket] leave_room: Room=${roomId}, User=${userId}`);
             try {
                 socket.leave(roomId);
+
+                // Atomic pull to remove user safely
                 const room = await Room.findOneAndUpdate(
                     { roomId },
                     { $pull: { members: userId } },
                     { new: true }
                 ).populate('members', 'name avatar email roles');
 
-                // Broadcast updated member list
                 if (room) {
+                    console.log(`[Socket] Removed user ${userId} from room ${roomId}. Remaining: ${room.members.length}`);
                     io.to(roomId).emit('room_members_updated', room.members);
 
-                    // Auto-delete if empty
                     if (room.members.length === 0) {
                         await Room.deleteOne({ roomId });
+                        console.log(`[Socket] Room ${roomId} deleted (empty).`);
                     }
                 }
             } catch (error) {
-                // Silent error handling
+                console.error("Error in leave_room:", error);
             }
         });
 
         // --- Generic Media Handlers (YouTube) ---
 
         socket.on('play_media', async ({ roomId, media }) => {
+            console.log(`[Socket] play_media received for room ${roomId}:`, media.title);
             // Play for everyone
             const now = Date.now();
             const updatedMedia = {
@@ -72,9 +81,22 @@ export const roomSocketHandler = (io: Server) => {
             };
 
             // Persist
-            await Room.findOneAndUpdate({ roomId }, { currentMedia: updatedMedia });
+            try {
+                const room = await Room.findOneAndUpdate(
+                    { roomId },
+                    { currentMedia: updatedMedia },
+                    { new: true, runValidators: true }
+                );
 
-            io.to(roomId).emit('media_state_changed', updatedMedia);
+                if (room) {
+                    console.log(`[Socket] Database updated for room ${roomId}. Broadcasting...`);
+                    io.to(roomId).emit('media_state_changed', updatedMedia);
+                } else {
+                    console.error(`[Socket] Room ${roomId} not found during play_media!`);
+                }
+            } catch (dbError) {
+                console.error(`[Socket] DB Error during play_media:`, dbError);
+            }
         });
 
         socket.on('pause_media', async ({ roomId, media }) => {
@@ -153,6 +175,7 @@ export const roomSocketHandler = (io: Server) => {
         socket.on('disconnect', async () => {
             const { userId, roomId } = socket.data;
             if (userId && roomId) {
+                console.log(`[Socket] User ${userId} disconnected from room ${roomId}`);
                 try {
                     const room = await Room.findOneAndUpdate(
                         { roomId },
@@ -161,9 +184,11 @@ export const roomSocketHandler = (io: Server) => {
                     ).populate('members', 'name avatar email roles');
 
                     if (room) {
+                        console.log(`[Socket] Disconnect Cleanup: Room ${roomId} has ${room.members.length} members`);
                         io.to(roomId).emit('room_members_updated', room.members);
                         if (room.members.length === 0) {
                             await Room.deleteOne({ roomId });
+                            console.log(`[Socket] Room ${roomId} deleted (empty/disconnect).`);
                         }
                     }
                 } catch (e) {

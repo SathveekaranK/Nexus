@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { Message } from '../models/Message';
-import { AuthRequest } from '../middleware/auth.middleware';
+import { AuthRequest } from '../middleware/auth';
 
 export const addReaction = async (req: AuthRequest, res: Response) => {
     try {

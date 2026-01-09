@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { Response } from 'express';
 import { Message } from '../models/Message';
 import { User } from '../models/User';
-import { AuthRequest } from '../middleware/auth.middleware';
+import { AuthRequest } from '../middleware/auth';
 import { createNotification } from './notification.controller';
 import { MessageEnricher } from '../services/ai/MessageEnricher';
 

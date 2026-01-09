@@ -20,7 +20,7 @@ import youtubeRoutes from './routes/youtube.routes';
 import userRoleRoutes from './routes/user-role.routes';
 import notificationRoutes from './routes/notification.routes';
 import eventRoutes from './routes/event.routes';
-import { authMiddleware } from './middleware/auth.middleware';
+import { authMiddleware } from './middleware/auth';
 import { roomSocketHandler } from './sockets/room.socket';
 import { chatSocketHandler } from './sockets/chat.socket';
 import { apiSocketHandler } from './sockets/api.socket';

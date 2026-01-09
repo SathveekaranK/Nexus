@@ -15,7 +15,13 @@ export const createRoom = async (req: Request | any, res: Response): Promise<voi
             genre: genre || 'General',
             members: [userId],
             currentMedia: {
-                timestamp: Date.now()
+                url: '',
+                title: 'No Media Playing',
+                thumbnail: '',
+                isPlaying: false,
+                timestamp: 0,
+                duration: 0,
+                playedAt: 0
             }
         });
 
