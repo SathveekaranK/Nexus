@@ -8,6 +8,12 @@ const userSchema = new mongoose.Schema({
     avatar: { type: String },
     bio: { type: String, default: '' },
     status: { type: String, default: 'online' },
+    customStatus: { type: String, default: '' }, // [NEW]
+    preferences: {
+        theme: { type: String, default: 'system' }, // 'light', 'dark', 'system'
+        notifications: { type: Boolean, default: true },
+        privacy: { type: String, default: 'public' } // 'public', 'private'
+    },
     roles: [{ type: String, default: 'member' }],
     channels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Channel' }],
     // AI Context Fields

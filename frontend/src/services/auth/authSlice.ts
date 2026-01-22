@@ -112,9 +112,26 @@ const authSlice = createSlice({
                 state.isLoading = false;
                 state.user = null;
                 state.token = null;
+            })
+            // Update Profile
+            .addCase(updateProfile.fulfilled, (state, action) => {
+                const updatedUser = action.payload;
+                state.user = { ...updatedUser, id: updatedUser._id || updatedUser.id };
             });
     },
 });
+
+export const updateProfile = createAsyncThunk(
+    'auth/updateProfile',
+    async (data: any, { rejectWithValue }) => {
+        try {
+            const user = await api.put('/users/profile', data) as any;
+            return user;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
 
 export const { logout, clearError } = authSlice.actions;
 export default authSlice.reducer;

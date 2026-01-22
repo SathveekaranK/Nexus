@@ -7,9 +7,10 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
-import { Search, Hash, PlusCircle } from 'lucide-react';
+import { Search, Hash, PlusCircle, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import GlobalSearchDialog from '../search/global-search-dialog';
 
 const getStatusClasses = (status: User['status']) => {
   switch (status) {
@@ -31,8 +32,8 @@ interface ChannelListProps {
   onSearchTermChange: (term: string) => void;
 }
 
-import { useSelector } from 'react-redux';
-import { RootState } from '@/store/store';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '@/store/store';
 import { Badge } from '../ui/badge'; // Ensure Badge component exists or use simple span
 
 export default function ChannelList({
@@ -128,6 +129,7 @@ export default function ChannelList({
           size="icon"
           className="h-6 w-6"
           onClick={onNewChannel}
+          title="Create new channel"
         >
           <PlusCircle className="h-4 w-4" />
         </Button>
@@ -174,17 +176,18 @@ export default function ChannelList({
   );
 
   return (
-    <div className="w-full md:w-72 bg-background/95 backdrop-blur-xl border-r border-white/5 flex flex-col h-full">
+    <div className="w-full h-full bg-transparent flex flex-col">
       <header className="p-3 border-b border-border shadow-sm">
         <h2 className="text-lg font-bold text-foreground">
           {listType === 'dms' ? 'Messages' : 'Channels'}
         </h2>
       </header>
-      <div className="p-3">
+      <div className="p-3 space-y-3">
+        <GlobalSearchDialog />
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search"
+            placeholder="Filter list..."
             className="pl-9 bg-background"
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
@@ -194,6 +197,43 @@ export default function ChannelList({
       <ScrollArea className="flex-1">
         {listType === 'dms' ? renderDMs() : renderChannels()}
       </ScrollArea>
+      <NowPlayingFooter />
+    </div>
+  );
+}
+
+// Sub-component for Now Playing
+function NowPlayingFooter() {
+  const { currentMedia, roomId } = useSelector((state: RootState) => state.room);
+  const dispatch = useDispatch<AppDispatch>();
+
+  if (!roomId || !currentMedia || !currentMedia.isPlaying) return null;
+
+  return (
+    <div className="p-3 bg-black/40 border-t border-white/5 backdrop-blur-md">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded bg-black/50 overflow-hidden flex-shrink-0 border border-white/10 relative">
+          {currentMedia.thumbnail ? (
+            <img src={currentMedia.thumbnail} className="object-cover w-full h-full" alt={currentMedia.title} title={currentMedia.title} />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Hash className="h-5 w-5 text-muted-foreground" />
+            </div>
+          )}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+            <div className="h-3 w-3 bg-primary rounded-full animate-pulse shadow-[0_0_10px_theme(colors.primary.DEFAULT)]" />
+          </div>
+        </div>
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <p className="text-xs font-bold text-white truncate">{currentMedia.title}</p>
+          <p className="text-[10px] text-muted-foreground truncate">Playing in Room</p>
+        </div>
+        <Link to="/music"> {/* Or dispatch navigation */}
+          <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:text-primary hover:bg-white/10" title="Go to music room">
+            <Play className="h-4 w-4" />
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }

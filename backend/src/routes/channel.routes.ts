@@ -1,5 +1,5 @@
 import express from 'express';
-import { createChannel, getUserChannels, addMember, leaveChannel, markRead } from '../controllers/channel.controller';
+import { createChannel, getUserChannels, addMember, leaveChannel, markRead, updateChannel, deleteChannel, removeMember } from '../controllers/channel.controller';
 
 const router = express.Router();
 
@@ -111,5 +111,12 @@ router.post('/:channelId/members', addMember);
  */
 router.post('/:channelId/leave', leaveChannel);
 router.post('/:channelId/read', markRead);
+
+// Update & Delete Channel
+router.put('/:channelId', updateChannel);
+router.delete('/:channelId', deleteChannel);
+
+// Kick Member
+router.delete('/:channelId/members/:userId', removeMember);
 
 export default router;

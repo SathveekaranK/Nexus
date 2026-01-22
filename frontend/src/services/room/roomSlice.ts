@@ -13,6 +13,7 @@ export interface RoomState {
         duration: number;
         playedAt: number;
     };
+    queue: any[];
     isLoading: boolean;
     error: string | null;
 }
@@ -29,6 +30,7 @@ const initialState: RoomState = {
         duration: 0,
         playedAt: 0
     },
+    queue: [],
     isLoading: false,
     error: null,
 };
@@ -37,7 +39,6 @@ export const createRoom = createAsyncThunk(
     'room/createRoom',
     async (data: { name?: string; genre?: string } | undefined, { rejectWithValue }) => {
         try {
-            // Updated api-client required for this
             const response: any = await api.createRoom(data);
             return response;
         } catch (error: any) {
@@ -50,7 +51,6 @@ export const joinRoom = createAsyncThunk(
     'room/joinRoom',
     async (roomId: string, { rejectWithValue }) => {
         try {
-            // Fetch room state
             const response: any = await api.getRoom(roomId);
             return response;
         } catch (error: any) {
@@ -72,14 +72,15 @@ const roomSlice = createSlice({
                 ...action.payload
             };
         },
+        updateQueue: (state, action) => {
+            state.queue = action.payload;
+        },
         updateMembers: (state, action) => {
-            // Merge new members with existing state to preserve ephemeral 'isMuted' property
             const newMembers = action.payload;
             state.members = newMembers.map((newM: any) => {
                 const existing = state.members.find((cur: any) =>
                     (cur._id === newM._id) || (cur.id === newM._id)
                 );
-                // Default to true (Muted) if new, or preserve existing
                 return {
                     ...newM,
                     isMuted: existing ? existing.isMuted : true
@@ -96,24 +97,27 @@ const roomSlice = createSlice({
             state.roomId = null;
             state.members = [];
             state.currentMedia = initialState.currentMedia;
+            state.queue = [];
         }
     },
     extraReducers: (builder) => {
         builder
             .addCase(createRoom.fulfilled, (state, action) => {
-                const room = action.payload.data || action.payload; // Handle wrapper
+                const room = action.payload.data || action.payload;
                 state.roomId = room.roomId;
                 state.members = room.members || [];
                 state.currentMedia = room.currentMedia || initialState.currentMedia;
+                state.queue = room.queue || [];
             })
             .addCase(joinRoom.fulfilled, (state, action) => {
-                const room = action.payload.data || action.payload; // Handle wrapper
+                const room = action.payload.data || action.payload;
                 state.roomId = room.roomId;
                 state.members = room.members || [];
                 state.currentMedia = room.currentMedia || initialState.currentMedia;
+                state.queue = room.queue || [];
             });
     }
 });
 
-export const { setRoomId, updateMedia, updateMembers, updateMemberStatus, leaveRoom } = roomSlice.actions;
+export const { setRoomId, updateMedia, updateQueue, updateMembers, updateMemberStatus, leaveRoom } = roomSlice.actions;
 export default roomSlice.reducer;

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { BotOrchestrator } from '../services/ai/BotOrchestrator';
 import { User } from '../models/User';
 import { Message } from '../models/Message';
+import axios from 'axios';
 
 // --- Main Chat Controller ---
 export const chat = async (req: Request, res: Response) => {
@@ -80,3 +81,76 @@ export const getHistory = async (req: Request, res: Response) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+/**
+ * Generate Smart Replies based on recent context
+ * POST /api/ai/smart-reply
+ * Body: { context: string[] } (Last 5 messages)
+ */
+export const generateSmartReplies = async (req: Request, res: Response) => {
+    try {
+        const { context } = req.body; // Array of message strings
+
+        let replies = ["OK", "Sounds good!", "I'll take a look."]; // Defaults
+
+        if (Array.isArray(context) && context.length > 0) {
+            const lastMsg = context[context.length - 1].toLowerCase();
+
+            // Simple heuristic / simulated AI
+            if (lastMsg.includes('?')) {
+                replies = ["Yes, I think so.", "Not sure yet.", "Let me check."];
+            } else if (lastMsg.includes('hello') || lastMsg.includes('hi')) {
+                replies = ["Hey there!", "Hello!", "Hi, how are you?"];
+            } else if (lastMsg.includes('thanks') || lastMsg.includes('thank you')) {
+                replies = ["You're welcome!", "No problem!", "Anytime."];
+            } else if (lastMsg.includes('meeting') || lastMsg.includes('schedule')) {
+                replies = ["I'm free.", "What time?", "Let's do it."];
+            }
+        }
+        res.json({ suggestions: replies });
+    } catch (error) {
+        const err = error as Error;
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * Summarize the conversation
+ * POST /api/ai/summarize
+ * Body: { messages: string[] }
+ */
+export const summarizeChat = async (req: Request, res: Response) => {
+    try {
+        const { messages } = req.body;
+
+        if (!process.env.OPENROUTER_API_KEY) {
+            const summaryPoints = ["Users discussed project.", "Action items assigned."];
+            return res.json({ success: true, summary: "- " + summaryPoints.join('\n- ') });
+        }
+
+        const prompt = `Please summarize the following chat conversation into a concise bulleted list of key points and action items:\n\n${messages.join('\n')}`;
+
+        const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
+            model: "google/gemini-2.0-flash-exp:free",
+            messages: [{ role: "user", content: prompt }]
+        }, {
+            headers: {
+                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                'HTTP-Referer': process.env.FRONTEND_URL || 'http://localhost:5173',
+                'X-Title': 'Nexus',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const summary = response.data?.choices?.[0]?.message?.content || "Could not generate summary.";
+
+        res.json({
+            success: true,
+            summary: summary
+        });
+    } catch (error: any) {
+        console.error("Summarize Error:", error.response?.data || error.message);
+        res.status(500).json({ error: "AI Failed to summarize." });
+    }
+};
+

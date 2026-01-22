@@ -7,14 +7,16 @@ export const roomSocketHandler = (io: Server) => {
 
 
 
-        socket.on('join_room', async ({ roomId, user }) => {
+        socket.on('join_room', async ({ roomId, user }: { roomId: string, user: any }) => {
             console.log(`[Socket] join_room request: Room=${roomId}, User=${user?.name || 'Unknown'}`);
             try {
                 const userId = user.id || user._id; // Handle both id formats
                 socket.join(roomId);
 
                 // Store in socket data for disconnect handling
+                // @ts-ignore
                 socket.data.userId = userId;
+                // @ts-ignore
                 socket.data.roomId = roomId;
 
                 console.log(`[Socket] User ${userId} joined room channel ${roomId}`);
@@ -118,6 +120,68 @@ export const roomSocketHandler = (io: Server) => {
 
             await Room.findOneAndUpdate({ roomId }, { currentMedia: updatedMedia });
             io.to(roomId).emit('media_seeked', updatedMedia);
+        });
+
+        // --- Queue Handlers ---
+        socket.on('add_to_queue', async ({ roomId, item }) => {
+            console.log(`[Socket] add_to_queue: Room=${roomId}, Item=${item.title}`);
+            try {
+                const room = await Room.findOneAndUpdate(
+                    { roomId },
+                    { $push: { queue: item } },
+                    { new: true }
+                );
+                if (room) {
+                    io.to(roomId).emit('queue_updated', room.queue);
+                }
+            } catch (err) {
+                console.error("Queue add error", err);
+            }
+        });
+
+        socket.on('remove_from_queue', async ({ roomId, index }) => {
+            // Removing by index is risky with concurrency, but simple for now. 
+            // Better: remove by ID if items have IDs. 
+            // Strategy: Pull by ID if possible, or use $unset if we knew index? No, array manipulation needs care.
+            // Simplest Mongoose: Find, splice, save.
+            try {
+                const room = await Room.findOne({ roomId });
+                if (room && room.queue && room.queue[index]) {
+                    room.queue.splice(index, 1);
+                    await room.save();
+                    io.to(roomId).emit('queue_updated', room.queue);
+                }
+            } catch (err) {
+                console.error("Queue remove error", err);
+            }
+        });
+
+        socket.on('play_next', async ({ roomId }) => {
+            // Logic: Take first from queue, set as currentMedia, remove from queue
+            try {
+                const room = await Room.findOne({ roomId });
+                if (room && room.queue && room.queue.length > 0) {
+                    const nextItem = room.queue[0];
+                    const updatedMedia = {
+                        url: nextItem.url,
+                        title: nextItem.title,
+                        thumbnail: nextItem.thumbnail,
+                        isPlaying: true, // Auto play
+                        timestamp: 0,
+                        duration: 0, // Should be passed or stored
+                        playedAt: Date.now()
+                    };
+
+                    room.currentMedia = updatedMedia;
+                    room.queue.shift(); // Remove first
+                    await room.save();
+
+                    io.to(roomId).emit('media_state_changed', updatedMedia);
+                    io.to(roomId).emit('queue_updated', room.queue);
+                }
+            } catch (err) {
+                console.error("Play next error", err);
+            }
         });
 
         socket.on('mute_user', async ({ roomId, targetUserId, requesterId }) => {

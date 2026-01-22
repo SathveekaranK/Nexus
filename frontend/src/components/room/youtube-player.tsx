@@ -44,6 +44,11 @@ export default function YouTubePlayer() {
     // controls=0 to prevent desync (user must use our synced buttons)
     const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=${currentMedia.isPlaying ? 1 : 0}&controls=0&disablekb=1&modestbranding=1&rel=0`;
 
+    const handleNext = () => {
+        if (!socket) return;
+        socket.emit('play_next', { roomId });
+    };
+
     return (
         <div className="space-y-4">
             <div className="relative aspect-video bg-black rounded-lg overflow-hidden shadow-lg">
@@ -77,13 +82,13 @@ export default function YouTubePlayer() {
 
             <div className="flex items-center justify-between bg-card p-4 rounded-lg border">
                 <div className="flex items-center gap-4">
-                    <Button size="icon" variant="ghost">
+                    <Button size="icon" variant="ghost" disabled>
                         <SkipForward className="rotate-180" />
                     </Button>
                     <Button size="icon" className="h-12 w-12 rounded-full" onClick={handlePlayPause}>
                         {currentMedia.isPlaying ? <Pause className="fill-current" /> : <Play className="fill-current" />}
                     </Button>
-                    <Button size="icon" variant="ghost">
+                    <Button size="icon" variant="ghost" onClick={handleNext}>
                         <SkipForward />
                     </Button>
                 </div>

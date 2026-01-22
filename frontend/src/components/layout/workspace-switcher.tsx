@@ -21,6 +21,7 @@ import {
   LogOut,
   BookOpen,
   Bell,
+  Plus,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { CHANNELS } from '@/lib/data';
@@ -108,31 +109,54 @@ export default function WorkspaceSwitcher({
   );
 
   return (
-    <div className="flex flex-col items-center gap-2 p-2 bg-background/95 backdrop-blur-xl h-full border-r border-white/5">
+    <div className="flex flex-col items-center gap-4 py-4 px-2 bg-transparent h-full w-full">
       <TooltipProvider>
-        {mainItems.map(renderTooltipButton)}
+        <div className="flex flex-col items-center gap-2 w-full">
+          {mainItems.map(renderTooltipButton)}
+        </div>
 
-        <div className="my-2 h-px w-8 bg-border" />
+        <div className="my-2 h-px w-8 bg-white/10" />
 
-        {toolItems.map(renderTooltipButton)}
+        <div className="flex flex-col items-center gap-2 w-full overflow-y-auto no-scrollbar">
+          {toolItems.map(renderTooltipButton)}
+        </div>
 
-        <div className="mt-auto flex flex-col gap-2">
-          {footerItems.map(renderTooltipButton)}
+        <div className="mt-auto flex flex-col items-center gap-4 w-full">
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleLogout}
-                className="h-12 w-12 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive hover:scale-110 transition-all"
+                className="h-12 w-12 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all duration-200 hover:scale-110"
+                title="Create workspace"
               >
-                <LogOut />
+                <Plus className="h-5 w-5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">
-              <p>Log Out</p>
+              <p>Create Workspace</p>
             </TooltipContent>
           </Tooltip>
+
+          <div className="flex flex-col items-center gap-2 w-full">
+            {footerItems.map(renderTooltipButton)}
+
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-12 w-12 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all duration-200 hover:scale-110"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Log Out</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </TooltipProvider>
     </div>

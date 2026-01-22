@@ -65,11 +65,11 @@ export default function NewChannelDialog({ isOpen, onOpenChange, onSave }: NewCh
                 </div>
                 <DialogFooter>
                     <DialogClose asChild>
-                        <Button type="button" variant="secondary">
+                        <Button type="button" variant="secondary" title="Cancel">
                             Cancel
                         </Button>
                     </DialogClose>
-                    <Button type="button" onClick={handleSave} disabled={!name.trim()}>
+                    <Button type="button" onClick={handleSave} disabled={!name.trim()} title="Create channel">
                         Create Channel
                     </Button>
                 </DialogFooter>

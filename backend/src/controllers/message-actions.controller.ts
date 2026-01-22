@@ -31,6 +31,15 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
 
         await message.save();
 
+        // Emit real-time update
+        const io = req.app.get('io');
+        if (message.channelId) {
+            io.to(`channel:${message.channelId}`).emit('message_reaction_update', { messageId, reactions: message.reactions });
+        } else if (message.recipientId) {
+            io.to(`dm:${message.recipientId}`).emit('message_reaction_update', { messageId, reactions: message.reactions });
+            io.to(`dm:${message.senderId}`).emit('message_reaction_update', { messageId, reactions: message.reactions });
+        }
+
         res.json({ success: true, data: message });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
@@ -57,6 +66,15 @@ export const updateMessage = async (req: AuthRequest, res: Response) => {
         message.edited = true;
         await message.save();
 
+        // Emit real-time update
+        const io = req.app.get('io');
+        if (message.channelId) {
+            io.to(`channel:${message.channelId}`).emit('message_updated', message);
+        } else if (message.recipientId) {
+            io.to(`dm:${message.recipientId}`).emit('message_updated', message);
+            io.to(`dm:${message.senderId}`).emit('message_updated', message);
+        }
+
         res.json({ success: true, data: message });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
@@ -79,6 +97,15 @@ export const deleteMessage = async (req: AuthRequest, res: Response) => {
         }
 
         await Message.findByIdAndDelete(messageId);
+
+        // Emit real-time update
+        const io = req.app.get('io');
+        if (message.channelId) {
+            io.to(`channel:${message.channelId}`).emit('message_deleted', { messageId });
+        } else if (message.recipientId) {
+            io.to(`dm:${message.recipientId}`).emit('message_deleted', { messageId });
+            io.to(`dm:${message.senderId}`).emit('message_deleted', { messageId });
+        }
 
         res.json({ success: true, message: 'Message deleted' });
     } catch (error: any) {

@@ -1,175 +1,60 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '@/store/store';
-import { Mic, MicOff, Loader2, LogOut } from 'lucide-react';
+import { Mic, MicOff, LogOut, Video as VideoIcon, VideoOff, Monitor, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { leaveRoom } from '@/services/room/roomSlice';
-import { useToast } from '@/hooks/use-toast';
-import AgoraRTC, {
-    AgoraRTCProvider,
-    useJoin,
-    useLocalMicrophoneTrack,
-    usePublish,
-    useRemoteUsers,
-    useRemoteAudioTracks,
-} from "agora-rtc-react";
+import { cn } from '@/lib/utils';
+import { useAgora } from '@/context/agora-context';
 
-const APP_ID = import.meta.env.VITE_AGORA_APP_ID;
-
-// Inner Component handling the logic
-function VoiceChatInner() {
+export default function VoiceChatControls() {
     const dispatch = useDispatch<AppDispatch>();
-    const roomId = useSelector((state: RootState) => state.room?.roomId);
-    const user = useSelector((state: RootState) => state.auth?.user);
-    const [isMuted, setIsMuted] = useState(true);
+    const {
+        isConnected,
+        isActive,
+        isMuted,
+        isCameraOn,
+        isScreenSharing,
+        toggleMute,
+        toggleCamera,
+        toggleScreenShare,
+        leaveCall,
+        joinCall,
+        remoteUsers
+    } = useAgora();
 
-    // Added explicit user ID handling
-    const uid = user?.id || null;
+    const [isExpanded, setIsExpanded] = useState(false);
 
-    // 1. Get Local Mic
-    const { localMicrophoneTrack, isLoading: isMicLoading } = useLocalMicrophoneTrack(true);
+    // Auto-expand if active and connected to show controls clearly? 
+    // Or maybe keep compact until user interacts. 
+    // Let's keep it compact by default.
 
-    // Enforce default mute state when track is ready
-    useEffect(() => {
-        if (localMicrophoneTrack) {
-            localMicrophoneTrack.setMuted(true);
-            setIsMuted(true);
-        }
-    }, [localMicrophoneTrack]);
-
-    // Cleanup Mic on Unmount
-    useEffect(() => {
-        return () => {
-            if (localMicrophoneTrack) {
-                localMicrophoneTrack.stop();
-                localMicrophoneTrack.close();
-            }
-        };
-    }, [localMicrophoneTrack]);
-
-
-    // 2. Join Channel
-    // Channel name must be string.
-    const { isLoading: isJoining, isConnected, error: joinError } = useJoin(
-        {
-            appid: APP_ID,
-            channel: roomId || "lobby",
-            token: null, // Basic auth
-            uid: uid
-        },
-        !!roomId && !!APP_ID
-    );
-
-    // Debug: Listen for Agora SDK Exceptions
-    // Debug: Listen for Agora SDK Exceptions
-    useEffect(() => {
-        if (joinError) {
-            console.error("Agora Join Error:", joinError);
-            const errorMessage = (joinError as any).code === "CAN_NOT_GET_GATEWAY_SERVER"
-                ? "Firewall blocking Agora. Check connection."
-                : "Failed to connect to voice chat.";
-
-            // Dispatch a custom event or use a ref if toast isn't available directly here, 
-            // but since we are inside a component, we can use a callback or just console for now if we don't have toast prop.
-            // Ideally pass `toast` down or use a global like `console.error` visible to user.
-            // Let's rely on the parent or adding `useToast` here if not already imported.
-            // Wait, `useJoin` returns error but doesn't trigger a side effect function we can hook into easily for one-off toast 
-            // except this effect.
-        }
-    }, [joinError]);
-
-    // 3. Publish Mic
-    usePublish([localMicrophoneTrack]);
-
-    // 4. Remote Users & Audio
-    const remoteUsers = useRemoteUsers();
-    const { audioTracks } = useRemoteAudioTracks(remoteUsers);
-
-    // 5. Play Remote Audio
-    useEffect(() => {
-        audioTracks.forEach((track) => track.play());
-    }, [audioTracks]);
-
-    // Listen for remote mute
-    useEffect(() => {
-        import('@/components/room/room-manager').then(({ getSocket }) => {
-            const socket = getSocket();
-            if (!socket) return;
-
-            const handleRemoteMute = async ({ targetUserId, mutedBy }: any) => {
-                if (user && (user.id === targetUserId || (user as any)._id === targetUserId)) {
-                    if (localMicrophoneTrack && !isMuted) {
-                        await localMicrophoneTrack.setMuted(true);
-                        setIsMuted(true);
-                        // Optional: Show toast
-                        // console.log(`Muted by ${mutedBy}`);
-                    }
-                }
-            };
-
-            socket.on('muted_by_admin', handleRemoteMute);
-            return () => {
-                socket.off('muted_by_admin', handleRemoteMute);
-            };
-        });
-    }, [localMicrophoneTrack, isMuted, user]);
-
-    // Mute Logic
-    const toggleMute = async () => {
-        if (localMicrophoneTrack) {
-            const newMutedState = !isMuted;
-            await localMicrophoneTrack.setMuted(newMutedState);
-            setIsMuted(newMutedState);
-
-            // Sync with Room
-            import('@/components/room/room-manager').then(({ getSocket }) => {
-                const socket = getSocket();
-                console.log(`[VoiceChat] Toggling Mute. New State: ${newMutedState}. Socket: ${!!socket}, Room: ${roomId}, User: ${user?.id}`);
-
-                if (socket && roomId && user) {
-                    socket.emit('mute_status_change', {
-                        roomId,
-                        userId: user.id || (user as any)._id,
-                        isMuted: newMutedState
-                    });
-                } else {
-                    console.error("[VoiceChat] Cannot sync mute state - missing dependencies");
-                }
-            });
-        }
-    };
-
-    // Connection Status Text
-    const statusText = isJoining ? "Joining..." : isConnected ? "Connected" : joinError ? `Error: ${joinError.message || joinError.name}` : "Disconnected";
-    // Count only if connected
     const activeListenerCount = isConnected ? remoteUsers.length : 0;
 
-    if (!APP_ID) {
-        return <div className="text-xs text-red-500 font-mono">Missing Agora APP ID</div>;
-    }
-
-    return (
-        <div className="flex items-center gap-2 bg-secondary/80 backdrop-blur-sm p-1.5 rounded-xl border border-white/10 shadow-lg">
-            {/* Status Indicator */}
-            <div className="flex flex-col px-3 border-r border-white/10 mr-1">
+    return !isActive ? (
+        <Button
+            size="sm"
+            variant="default"
+            className="bg-green-600 hover:bg-green-700 text-white gap-2"
+            onClick={joinCall}
+        >
+            <Mic className="h-4 w-4" />
+            Join Voice
+        </Button>
+    ) : (
+        <div className={cn(
+            "transition-all duration-300 ease-in-out border border-white/10 shadow-2xl z-40 overflow-hidden bg-black/40 backdrop-blur-md rounded-xl p-1.5 flex items-center gap-2",
+            // We can remove the fixed positioning if we want to place it in the header naturally.
+            // For now, let's assume it's placed in the header flex container as before.
+        )}>
+            {/* Status Info */}
+            <div className="flex flex-col px-3 border-r border-white/10 mr-2">
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
-                    {isConnected ? (
-                        <>
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                            </span>
-                            Live Voice
-                        </>
-                    ) : (
-                        <>
-                            <span className="h-2 w-2 rounded-full bg-slate-500" />
-                            Offline
-                        </>
-                    )}
+                    {isConnected ? <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> : <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />}
+                    {isConnected ? "Connected" : "Connecting..."}
                 </span>
-                <span className="text-xs font-mono text-white/90">
-                    {activeListenerCount + 1} User{activeListenerCount + 1 !== 1 ? 's' : ''}
+                <span className="text-xs font-mono text-foreground/90">
+                    {activeListenerCount + 1} User{activeListenerCount !== 0 ? 's' : ''}
                 </span>
             </div>
 
@@ -178,20 +63,47 @@ function VoiceChatInner() {
                 <Button
                     size="sm"
                     variant={isMuted ? "destructive" : "secondary"}
-                    className={`h-9 px-3 gap-2 transition-all font-medium ${isMuted ? 'bg-red-500 hover:bg-red-600' : 'bg-white/10 hover:bg-white/20 text-white ring-1 ring-inset ring-white/10'}`}
+                    className={cn("h-9 w-9 p-0 md:w-auto md:px-3 md:py-2 gap-2 transition-all font-medium", isMuted ? "bg-red-500 hover:bg-red-600 text-white" : "bg-white/10 text-foreground")}
                     onClick={toggleMute}
-                    disabled={isMicLoading || !localMicrophoneTrack}
+                    title={isMuted ? "Unmute" : "Mute"}
                 >
                     {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4 text-green-400" />}
-                    {isMuted ? "Unmute" : "Mute"}
+                    <span className="hidden md:inline">{isMuted ? "Unmute" : "Mute"}</span>
+                </Button>
+
+                <Button
+                    size="sm"
+                    variant={isCameraOn ? "default" : "secondary"}
+                    className={cn("h-9 w-9 p-0 md:w-auto md:px-3 md:py-2 gap-2 transition-all font-medium", isCameraOn ? "bg-primary text-white" : "bg-white/10 text-foreground")}
+                    onClick={toggleCamera}
+                    title={isCameraOn ? "Turn Camera Off" : "Turn Camera On"}
+                >
+                    {isCameraOn ? <VideoIcon className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
+                    <span className="hidden md:inline">{isCameraOn ? "Cam On" : "Cam Off"}</span>
+                </Button>
+
+                <Button
+                    size="sm"
+                    variant={isScreenSharing ? "default" : "secondary"}
+                    className={cn("h-9 w-9 p-0 md:w-auto md:px-3 md:py-2 gap-2 transition-all font-medium", isScreenSharing ? "bg-blue-600 text-white" : "bg-white/10 text-foreground")}
+                    onClick={toggleScreenShare}
+                    title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
+                >
+                    <Monitor className="h-4 w-4" />
+                    <span className="hidden md:inline">{isScreenSharing ? "Stop Share" : "Share"}</span>
                 </Button>
 
                 <Button
                     size="sm"
                     variant="ghost"
                     className="h-9 w-9 p-0 rounded-lg text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-colors"
-                    onClick={() => dispatch(leaveRoom())}
-                    title="Disconnect"
+                    onClick={() => {
+                        leaveCall();
+                        // dispatch(leaveRoom()); // Do not leave the actual room, just the voice call? Or both?
+                        // For now, separate concerns: Voice disconnect vs Room leave.
+                        // But usually "hanging up" implies leaving the voice channel.
+                    }}
+                    title="Disconnect Voice"
                 >
                     <LogOut className="h-4 w-4" />
                 </Button>
@@ -200,43 +112,3 @@ function VoiceChatInner() {
     );
 }
 
-// Wrapper to provide Client
-export default function VoiceChat() {
-    // Create client once using useMemo to prevent recreation on re-renders
-    const client = useMemo(() => {
-        const c = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-        // Attempt to start Cloud Proxy if available
-        // Note: This requires enabling Cloud Proxy in Agora Console, but we can try setting it client side
-        // c.startProxyServer(3); // 3 = UDP(1) + TCP(2)
-        return c;
-    }, []);
-
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const handleException = (event: any) => {
-            console.warn("Agora SDK Exception:", event);
-            // Specifically log 701 errors for visibility
-            if (event.code === 701) {
-                console.error("Agora ICE Error 701: Network blocking or Firewall issue detected. Check VPN/Firewall settings.");
-                toast({
-                    title: "Voice Connection Error",
-                    description: "Firewall blocking connection (Error 701). Try a different network.",
-                    variant: "destructive"
-                });
-            }
-        };
-
-        client.on("exception", handleException);
-
-        return () => {
-            client.off("exception", handleException);
-        };
-    }, [client, toast]);
-
-    return (
-        <AgoraRTCProvider client={client}>
-            <VoiceChatInner />
-        </AgoraRTCProvider>
-    );
-}

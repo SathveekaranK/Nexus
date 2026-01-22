@@ -26,7 +26,7 @@ export const api = {
     login: (credentials: any) => apiFromAxios.post<{ token: string; user: User }>('/auth/login', credentials) as unknown as Promise<{ token: string; user: User }>,
     register: (userData: any) => apiFromAxios.post<{ token: string; user: User }>('/auth/register', userData) as unknown as Promise<{ token: string; user: User }>,
     getMe: () => apiFromAxios.get<User>('/auth/me') as unknown as Promise<User>,
-    updateProfile: (data: { name?: string; bio?: string; status?: string; avatar?: string }) => apiFromAxios.put<User>('/users/profile', data) as unknown as Promise<User>,
+    updateProfile: (data: { name?: string; bio?: string; status?: string; avatar?: string; customStatus?: string; preferences?: any }) => apiFromAxios.put<User>('/users/profile', data) as unknown as Promise<User>,
 
     // --- USERS (Socket) ---
     getUsers: () => socketRequest<User[]>('user:list'),
@@ -38,15 +38,19 @@ export const api = {
     addMemberToChannel: (channelId: string, userId: string) => apiFromAxios.post(`/channels/${channelId}/members`, { userId }) as unknown as Promise<Channel>,
     leaveChannel: (channelId: string) => apiFromAxios.post(`/channels/${channelId}/leave`) as unknown as Promise<void>,
     markChannelRead: (channelId: string) => apiFromAxios.post(`/channels/${channelId}/read`) as unknown as Promise<void>,
+    updateChannel: (channelId: string, data: { name?: string; description?: string; topic?: string }) => apiFromAxios.put(`/channels/${channelId}`, data) as unknown as Promise<Channel>,
+    deleteChannel: (channelId: string) => apiFromAxios.delete(`/channels/${channelId}`) as unknown as Promise<void>,
+    kickMember: (channelId: string, userId: string) => apiFromAxios.delete(`/channels/${channelId}/members/${userId}`) as unknown as Promise<void>,
 
     // --- MESSAGES (Socket) ---
-    getMessages: (params: { channelId?: string; contactId?: string }) => socketRequest<Message[]>('message:list', params),
+    getMessages: (params: { channelId?: string; contactId?: string; before?: string }) => socketRequest<Message[]>('message:list', params),
     // Note: api-client.ts creates a message then returns it. Socket sends and returns it.
     createMessage: (data: any) => socketRequest<Message>('message:send', data),
 
     // Fallback/Legacy/Specific REST endpoints
     markMessageRead: (messageId: string) => apiFromAxios.post(`/messages/${messageId}/read`),
     deleteMessage: (messageId: string) => apiFromAxios.delete(`/messages/${messageId}`) as unknown as Promise<void>,
+    updateMessage: (messageId: string, data: { content: string }) => apiFromAxios.put(`/messages/${messageId}`, data) as unknown as Promise<void>,
 
     // --- FILES (REST) ---
     uploadFile: async (file: File) => {
@@ -60,6 +64,8 @@ export const api = {
     // --- AI (Keep REST for now as per plan, though could move) ---
     chatAi: (query: string, context: string[]) => apiFromAxios.post('/ai/chat', { query, context }),
     uploadExcel: (dataUri: string) => apiFromAxios.post('/ai/excel', { dataUri }),
+    getSmartReplies: (context: string[]) => apiFromAxios.post<{ suggestions: string[] }>('/ai/smart-reply', { context }) as unknown as Promise<{ suggestions: string[] }>,
+    summarizeChat: (messages: string[]) => apiFromAxios.post<{ success: boolean; summary: string }>('/ai/summarize', { messages }) as unknown as Promise<{ success: boolean; summary: string }>,
 
     // --- NOTIFICATIONS (Keep REST or Move - Plan said move, let's keep REST for safely first, actually plan said move but I haven't implemented backend socket for it yet. Sticking to REST for notifications for this step to minimize breakage) ---
     getNotifications: (read?: boolean) => apiFromAxios.get(`/notifications${read !== undefined ? `?read=${read}` : ''}`),
@@ -136,5 +142,8 @@ export const api = {
             headers: getHeaders(),
         });
         return handleResponse(res);
-    }
+    },
+
+    // --- SEARCH (REST) ---
+    searchGlobal: (query: string, type?: string) => apiFromAxios.get<{ success: boolean; data: any }>(`/search/global?q=${encodeURIComponent(query)}&type=${type || 'all'}`) as unknown as Promise<{ success: boolean; data: any }>
 };

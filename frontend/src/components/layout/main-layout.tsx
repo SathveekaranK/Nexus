@@ -13,6 +13,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { addNotification } from '@/services/notification/notificationSlice';
 import { Separator } from '../ui/separator';
 import { RootState } from '@/store/store';
+import { cn } from '@/lib/utils';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -52,7 +53,8 @@ export default function MainLayout({
   };
 
   const activeViewType = getActiveViewType();
-  const activeChannelId = pathname.split('/').pop();
+  const pathParts = pathname.split('/').filter(Boolean);
+  const activeChannelId = pathParts.length > 1 ? pathParts[1] : null;
 
   // Reset active channel if invalid or not found (unless creating new)
   useEffect(() => {
@@ -248,33 +250,43 @@ export default function MainLayout({
   };
 
   return (
-    <div className="flex h-screen w-full bg-background text-foreground">
-      {/* Mobile Nav - Strictly hidden on desktop */}
-      <div className="md:hidden contents mobile-only">
-        <div className="fixed top-0 left-0 right-0 z-[100] p-2 bg-background/80 backdrop-blur-xl border-b border-white/5 h-16 flex items-center md:hidden">
-          <MobileNav
-            activeViewType={activeViewType}
-            renderChannelList={renderChannelList}
-            pathname={pathname}
-          />
-        </div>
+    <div className="flex flex-col h-[100dvh] w-full bg-transparent text-foreground overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
+        {/* Navigation Rail - Desktop */}
+        <nav className="hidden md:flex h-full w-[76px] flex-shrink-0 border-r border-white/5 bg-black/40 backdrop-blur-2xl z-30 flex-col" role="navigation" aria-label="Workspaces">
+          <WorkspaceSwitcher activeViewType={activeViewType} />
+        </nav>
+
+        {/* Secondary Sidebar */}
+        {(activeViewType === 'dms' || activeViewType === 'channels') && (
+          <aside
+            className={cn(
+              "h-full w-full md:w-[260px] lg:w-[300px] flex-shrink-0 border-r border-white/5 bg-black/20 backdrop-blur-xl z-20 flex-col",
+              activeChannelId ? "hidden md:flex" : "flex"
+            )}
+            role="navigation"
+            aria-label="Channel list"
+          >
+            {renderChannelList()}
+          </aside>
+        )}
+
+        {/* Main Content Area */}
+        <main
+          className={cn(
+            "flex-1 flex flex-col h-full overflow-hidden relative w-full bg-transparent min-w-0 transition-all duration-300",
+            (!activeChannelId && (activeViewType === 'dms' || activeViewType === 'channels')) ? "hidden md:flex" : "flex"
+          )}
+        >
+          {/* Children (Page Content) */}
+          <div className="flex-1 flex flex-col h-full min-h-0" role="main">
+            {children}
+          </div>
+        </main>
       </div>
 
-      {/* Desktop Sidebar - Only on desktop */}
-      <div className="hidden md:flex h-full">
-        <WorkspaceSwitcher activeViewType={activeViewType} />
-        {renderChannelList()}
-      </div>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {children}
-        {/* Spacer for bottom nav on mobile */}
-        <div className="h-16 md:hidden flex-shrink-0" />
-      </main>
-
-      {/* Mobile Bottom Navigation - Hidden on desktop */}
-      <div className="md:hidden print:hidden mobile-only">
+      {/* Mobile Navigation Bar - Docked at Bottom */}
+      <div className="md:hidden border-t border-white/5 bg-black/40 backdrop-blur-2xl" role="navigation" aria-label="Mobile navigation">
         <BottomNav />
       </div>
 

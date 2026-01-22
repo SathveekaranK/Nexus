@@ -56,6 +56,13 @@ const RoomManager = ({ children }: RoomManagerProps) => {
             dispatch(updateMedia(media));
         });
 
+        // Queue Updates
+        socket.on('queue_updated', (queue) => {
+            import('@/services/room/roomSlice').then(({ updateQueue }) => {
+                dispatch(updateQueue(queue));
+            });
+        });
+
         // Member Updates
         socket.on('room_members_updated', (members) => {
             dispatch(updateMembers(members));

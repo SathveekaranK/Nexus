@@ -66,11 +66,16 @@ export const getUserChannelsInternal = async (userId: string) => {
 // --- Message Handlers (Internal) ---
 
 export const getMessagesInternal = async (userId: string, queryParams: any) => {
-    const { channelId, contactId } = queryParams;
+    const { channelId, contactId, before, limit = 50 } = queryParams;
     let query: any = {};
 
+    // Pagination query
+    if (before) {
+        query.createdAt = { $lt: new Date(before) };
+    }
+
     if (channelId) {
-        query = { channelId };
+        query.channelId = channelId;
     } else if (contactId) {
         const actualUserId = contactId.replace('dm-', '');
 
@@ -79,12 +84,10 @@ export const getMessagesInternal = async (userId: string, queryParams: any) => {
             return [];
         }
 
-        query = {
-            $or: [
-                { senderId: userId, recipientId: userIdStr },
-                { senderId: userIdStr, recipientId: userId }
-            ]
-        };
+        query.$or = [
+            { senderId: userId, recipientId: userIdStr },
+            { senderId: userIdStr, recipientId: userId }
+        ];
     } else {
         throw new Error('userId or channelId query param required');
     }
@@ -92,9 +95,11 @@ export const getMessagesInternal = async (userId: string, queryParams: any) => {
     const messages = await Message.find(query)
         .populate('senderId', 'name avatar email roles')
         .populate('replyTo')
-        .sort({ createdAt: 1 });
+        .sort({ createdAt: -1 }) // Get latest first (or latest before cursor)
+        .limit(Number(limit));
 
-    return messages;
+    // Return in chronological order
+    return messages.reverse();
 };
 
 export const sendMessageInternal = async (userId: string, data: any) => {

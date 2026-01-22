@@ -17,6 +17,7 @@ export interface IRoom extends Document {
     genre: string;
     members: string[];
     currentMedia: IMedia;
+    queue: any[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -52,7 +53,14 @@ const RoomSchema: Schema = new Schema({
         timestamp: { type: Number, default: 0 },
         duration: { type: Number, default: 0 },
         playedAt: { type: Number, default: 0 }
-    }
+    },
+    queue: [{
+        url: { type: String, required: true },
+        title: { type: String, required: true },
+        thumbnail: { type: String },
+        duration: { type: String },
+        addedBy: { type: String }
+    }]
 }, {
     timestamps: true
 });
