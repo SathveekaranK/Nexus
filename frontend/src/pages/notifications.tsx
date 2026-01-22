@@ -34,7 +34,7 @@ export default function NotificationsPage() {
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-background mt-16 md:mt-0">
+        <div className="flex-1 flex flex-col h-full bg-background">
             <header className="p-6 border-b border-white/5 flex items-center justify-between bg-background/50 backdrop-blur-md sticky top-0 z-10">
                 <div className="flex items-center gap-3">
                     <div className="p-3 bg-primary/10 rounded-xl ring-1 ring-primary/20">

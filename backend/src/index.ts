@@ -6,6 +6,9 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import http from 'http';
 import { Server } from 'socket.io';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 
 // Routes
 import authRoutes from './routes/auth.routes';
@@ -20,6 +23,8 @@ import youtubeRoutes from './routes/youtube.routes';
 import userRoleRoutes from './routes/user-role.routes';
 import notificationRoutes from './routes/notification.routes';
 import eventRoutes from './routes/event.routes';
+import fileRoutes from './routes/file.routes'; // [NEW]
+import searchRoutes from './routes/search.routes'; // [NEW]
 import { authMiddleware } from './middleware/auth';
 import { roomSocketHandler } from './sockets/room.socket';
 import { chatSocketHandler } from './sockets/chat.socket';
@@ -30,6 +35,22 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+
+// [Security] Helmet
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false
+}));
+
+// [Performance] Compression
+app.use(compression());
+
+// [Security] Rate Limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 1000,
+});
+app.use('/api', limiter);
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
@@ -84,6 +105,9 @@ app.use('/api/youtube', authMiddleware, youtubeRoutes);
 app.use('/api/user-roles', authMiddleware, userRoleRoutes);
 app.use('/api/notifications', authMiddleware, notificationRoutes);
 app.use('/api/events', authMiddleware, eventRoutes);
+app.use('/api/files', fileRoutes); // [NEW]
+app.use('/api/search', authMiddleware, searchRoutes); // [NEW]
+app.use('/uploads', express.static('uploads')); // [NEW] Serve uploaded files
 
 // Socket.io Handlers
 roomSocketHandler(io);

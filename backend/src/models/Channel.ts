@@ -4,6 +4,7 @@ const channelSchema = new mongoose.Schema({
     name: { type: String, required: true },
     description: { type: String, default: '' },
     type: { type: String, enum: ['channel', 'dm'], default: 'channel' },
+    topic: { type: String, default: '' },
     members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     lastMessageAt: { type: Date, default: Date.now, index: true }

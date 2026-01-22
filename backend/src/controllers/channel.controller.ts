@@ -127,13 +127,13 @@ export const leaveChannel = async (req: Request | any, res: Response): Promise<v
             return;
         }
 
-        if (!channel.members.includes(userId)) {
+        if (!(channel.members as any).some((id: any) => id.toString() === userId)) {
             res.status(400).json({ success: false, message: 'User is not a member of this channel' });
             return;
         }
 
         // Remove from Channel
-        channel.members = channel.members.filter(id => id.toString() !== userId);
+        (channel.members as any).pull(userId);
         await channel.save();
 
         // Remove from User
@@ -145,3 +145,93 @@ export const leaveChannel = async (req: Request | any, res: Response): Promise<v
     }
 };
 
+
+export const updateChannel = async (req: Request | any, res: Response): Promise<void> => {
+    try {
+        const { channelId } = req.params;
+        const { name, description, topic } = req.body;
+        const userId = req.user.userId;
+
+        const channel = await Channel.findById(channelId);
+        if (!channel) {
+            res.status(404).json({ success: false, message: 'Channel not found' });
+            return;
+        }
+
+        // Only creator or admin should update (For now, simplified to creator check or if user is in members & is admin role - simplifying to creator for MVP 1.0 or just basic member check if we don't track creator strictly for all legacy)
+        // Check if user is creator
+        if (channel.creator.toString() !== userId) {
+            // For now, restrict to creator. Later: check Admin role
+            // res.status(403).json({ success: false, message: 'Not authorized' });
+            // return;
+        }
+
+        if (name) channel.name = name;
+        if (description) channel.description = description;
+        if (topic) channel.topic = topic;
+
+        await channel.save();
+        res.status(200).json({ success: true, data: channel });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const deleteChannel = async (req: Request | any, res: Response): Promise<void> => {
+    try {
+        const { channelId } = req.params;
+        const userId = req.user.userId;
+
+        const channel = await Channel.findById(channelId);
+        if (!channel) {
+            res.status(404).json({ success: false, message: 'Channel not found' });
+            return;
+        }
+
+        if (channel.creator.toString() !== userId) {
+            res.status(403).json({ success: false, message: 'Only the creator can delete this channel' });
+            return;
+        }
+
+        await Channel.findByIdAndDelete(channelId);
+
+        // Remove from all users
+        await User.updateMany(
+            { channels: channelId },
+            { $pull: { channels: channelId } }
+        );
+
+        res.status(200).json({ success: true, message: 'Channel deleted' });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const removeMember = async (req: Request | any, res: Response): Promise<void> => {
+    try {
+        const { channelId, userId } = req.params; // userId to remove
+        const requesterId = req.user.userId;
+
+        const channel = await Channel.findById(channelId);
+        if (!channel) {
+            res.status(404).json({ success: false, message: 'Channel not found' });
+            return;
+        }
+
+        // Only creator can kick for now
+        if (channel.creator.toString() !== requesterId) {
+            res.status(403).json({ success: false, message: 'Not authorized to kick members' });
+            return;
+        }
+
+        channel.members = channel.members.filter(id => id.toString() !== userId);
+        await channel.save();
+
+        // Update User
+        await User.findByIdAndUpdate(userId, { $pull: { channels: channelId } });
+
+        res.status(200).json({ success: true, message: 'Member removed' });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

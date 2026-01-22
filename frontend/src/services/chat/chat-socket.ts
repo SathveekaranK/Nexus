@@ -105,6 +105,21 @@ export const onMessageSent = (callback: (data: { tempId?: string; message: any }
     return () => removeListener('message:sent', callback);
 };
 
+export const onMessageUpdated = (callback: (message: any) => void) => {
+    addListener('message_updated', callback);
+    return () => removeListener('message_updated', callback);
+};
+
+export const onMessageDeleted = (callback: (data: { messageId: string }) => void) => {
+    addListener('message_deleted', callback);
+    return () => removeListener('message_deleted', callback);
+};
+
+export const onMessageReactionUpdate = (callback: (data: { messageId: string; reactions: any[] }) => void) => {
+    addListener('message_reaction_update', callback);
+    return () => removeListener('message_reaction_update', callback);
+};
+
 export const disconnectChatSocket = () => {
     if (chatSocket) {
         chatSocket.disconnect();

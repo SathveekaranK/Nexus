@@ -84,13 +84,15 @@ export const updateUserProfile = async (req: Request, res: Response) => {
     try {
         // @ts-ignore
         const userId = req.user.userId;
-        const { name, bio, status, avatar } = req.body;
+        const { name, bio, status, avatar, customStatus, preferences } = req.body;
 
         const updates: any = {};
         if (name !== undefined) updates.name = name;
         if (bio !== undefined) updates.bio = bio;
         if (status !== undefined) updates.status = status;
         if (avatar !== undefined) updates.avatar = avatar;
+        if (customStatus !== undefined) updates.customStatus = customStatus;
+        if (preferences !== undefined) updates.preferences = preferences;
 
         const user = await User.findByIdAndUpdate(userId, updates, { new: true }).select('-password');
 

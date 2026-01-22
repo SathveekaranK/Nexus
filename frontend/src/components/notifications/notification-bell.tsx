@@ -61,7 +61,7 @@ export default function NotificationBell() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                <Button variant="ghost" size="icon" className="relative h-9 w-9" title="Notifications">
                     <Bell className="h-5 w-5 text-muted-foreground" />
                     {unreadCount > 0 && (
                         <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background animate-pulse" />
@@ -72,7 +72,7 @@ export default function NotificationBell() {
                 <div className="flex items-center justify-between px-2 py-1.5">
                     <DropdownMenuLabel className="font-bold">Notifications</DropdownMenuLabel>
                     {unreadCount > 0 && (
-                        <Button variant="ghost" size="sm" className="h-6 text-xs text-primary" onClick={() => dispatch(markAllNotificationsAsRead())}>
+                        <Button variant="ghost" size="sm" className="h-6 text-xs text-primary" onClick={() => dispatch(markAllNotificationsAsRead())} title="Mark all notifications as read">
                             Mark all read
                         </Button>
                     )}

@@ -129,7 +129,7 @@ export const chatSocketHandler = (io: Server) => {
 
                     // Broadcast offline status
                     io.emit('user_status_change', { userId, status: 'offline' });
-                } catch (error) {
+                } catch (error: any) {
                     console.error('Error updating status to offline:', error);
                 }
             }

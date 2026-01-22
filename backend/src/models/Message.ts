@@ -39,4 +39,6 @@ const messageSchema = new mongoose.Schema({
     isSystemMessage: { type: Boolean, default: false }
 }, { timestamps: true });
 
+messageSchema.index({ content: 'text' });
+
 export const Message = mongoose.model('Message', messageSchema);

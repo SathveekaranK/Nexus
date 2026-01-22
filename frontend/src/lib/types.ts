@@ -2,10 +2,16 @@
 export interface User {
   id: string;
   name: string;
+  email?: string;
   avatar: string;
   status: 'online' | 'offline' | 'away' | 'dnd';
   customStatus?: string;
   bio?: string;
+  preferences?: {
+    theme: string;
+    notifications: boolean;
+    privacy: string;
+  };
   roles?: string[]; // Updated for multi-role
 }
 
@@ -26,11 +32,12 @@ export interface Message {
   content: string;
   timestamp: string;
   channelId: string;
-  type: 'text' | 'image' | 'file' | 'bot' | 'voice' | 'video';
+  type: 'text' | 'image' | 'file' | 'bot' | 'voice' | 'video' | 'system';
   reactions?: Reaction[];
   replyTo?: string;
   edited?: boolean;
   pinned?: boolean;
+  readBy?: string[];
 }
 
 export interface Channel {
@@ -38,6 +45,7 @@ export interface Channel {
   name: string;
   type: 'channel' | 'dm';
   memberIds?: string[];
+  creator?: string;
   description?: string;
   pinnedMessageIds?: string[];
   createdAt?: string;

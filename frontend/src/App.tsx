@@ -21,6 +21,7 @@ import SettingsPage from "@/pages/settings";
 import NotificationsPage from "@/pages/notifications";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
+import { AgoraProvider } from "@/context/agora-context";
 
 function Home() {
     return (
@@ -37,6 +38,7 @@ export default function App() {
     const { user: currentUser, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
     const { users } = useSelector((state: RootState) => state.users);
     const { channels } = useSelector((state: RootState) => state.channels);
+    const roomId = useSelector((state: RootState) => state.room?.roomId);
 
     useEffect(() => {
         dispatch(fetchMe());
@@ -116,6 +118,8 @@ export default function App() {
         ) : null
     );
 
+
+
     return (
         <BrowserRouter>
             <Routes>
@@ -128,19 +132,21 @@ export default function App() {
                     path="/*"
                     element={
                         currentUser ? (
-                            <MainLayout allChannels={channels} currentUser={currentUser} users={users}>
-                                <Routes>
-                                    <Route path="/" element={<Home />} />
-                                    <Route path="/channels/:channelId" element={<ChannelPage currentUser={currentUser} />} />
-                                    <Route path="/dms/:channelId" element={<DmPage currentUser={currentUser} />} />
-                                    <Route path="/music" element={<MusicPage />} />
-                                    <Route path="/ai-chat" element={<AiChatPage currentUser={currentUser} />} />
-                                    <Route path="/calendar" element={<CalendarPage currentUser={currentUser} />} />
-                                    <Route path="/resources" element={<ResourcesPage />} />
-                                    <Route path="/settings" element={<SettingsPage currentUser={currentUser} />} />
-                                    <Route path="/notifications" element={<NotificationsPage />} />
-                                </Routes>
-                            </MainLayout>
+                            <AgoraProvider appId={import.meta.env.VITE_AGORA_APP_ID || ""} roomId={roomId}>
+                                <MainLayout allChannels={channels} currentUser={currentUser} users={users}>
+                                    <Routes>
+                                        <Route path="/" element={<Home />} />
+                                        <Route path="/channels/:channelId" element={<ChannelPage currentUser={currentUser} />} />
+                                        <Route path="/dms/:channelId" element={<DmPage currentUser={currentUser} />} />
+                                        <Route path="/music" element={<MusicPage />} />
+                                        <Route path="/ai-chat" element={<AiChatPage currentUser={currentUser} />} />
+                                        <Route path="/calendar" element={<CalendarPage currentUser={currentUser} />} />
+                                        <Route path="/resources" element={<ResourcesPage />} />
+                                        <Route path="/settings" element={<SettingsPage currentUser={currentUser} />} />
+                                        <Route path="/notifications" element={<NotificationsPage />} />
+                                    </Routes>
+                                </MainLayout>
+                            </AgoraProvider>
                         ) : (
                             <Navigate to="/login" />
                         )

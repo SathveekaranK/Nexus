@@ -16,17 +16,21 @@ const initialState: MessageState = {
 
 export const fetchMessages = createAsyncThunk(
     'messages/fetchMessages',
-    async (params: { userId?: string; channelId?: string }, { rejectWithValue }) => {
+    async (params: { userId?: string; channelId?: string; before?: string }, { rejectWithValue }) => {
         try {
             // Map userId to contactId for backend compatibility if needed
             // Backend expects 'contactId' in queryParams for DMs if channelId is missing
             const requestParams = {
                 channelId: params.channelId,
-                contactId: params.userId
+                contactId: params.userId,
+                before: params.before
             };
 
             const response = await api.getMessages(requestParams);
-            return response;
+            return {
+                messages: response,
+                isHistory: !!params.before // Flag to distinguish history fetch vs initial
+            };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -63,12 +67,21 @@ const messageSlice = createSlice({
             })
             .addCase(fetchMessages.fulfilled, (state, action) => {
                 state.isLoading = false;
-                // action.payload is messages array
-                state.messages = action.payload.map((msg: any) => ({
+                const { messages, isHistory } = action.payload; // Destructure from modified Thunk return
+
+                const mappedMessages = messages.map((msg: any) => ({
                     ...msg,
                     id: msg._id || msg.id,
                     timestamp: msg.createdAt
                 }));
+
+                if (isHistory) {
+                    // Prepend older messages
+                    state.messages = [...mappedMessages, ...state.messages];
+                } else {
+                    // Initial load or fresh switch
+                    state.messages = mappedMessages;
+                }
             })
             .addCase(fetchMessages.rejected, (state, action) => {
                 state.isLoading = false;

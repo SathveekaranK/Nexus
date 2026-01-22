@@ -5,6 +5,7 @@ import { Music as MusicIcon, LogOut } from 'lucide-react';
 import RoomManager from '@/components/room/room-manager';
 import MediaSearch from '@/components/room/media-search';
 import YouTubePlayer from '@/components/room/youtube-player';
+// VoiceChat is now just the controls
 import VoiceChat from '@/components/room/voice-chat';
 import ActiveUsersPanel from '@/components/music/active-users-panel';
 import { useDispatch, useSelector } from 'react-redux';
@@ -12,19 +13,22 @@ import { AppDispatch, RootState } from '@/store/store';
 import { createRoom, joinRoom, leaveRoom } from '@/services/room/roomSlice';
 import { useToast } from '@/hooks/use-toast';
 import MusicLobby from '@/components/music/music-lobby';
+import QueueList from '@/components/music/queue-list';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { Plus, ListMusic, Users } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getSocket } from '@/components/room/room-manager';
+import Stage from '@/components/room/stage';
 
 export default function MusicPage() {
     const dispatch = useDispatch<AppDispatch>();
-    const { roomId, members, currentMedia } = useSelector((state: RootState) => state.room);
+    const { roomId, members, currentMedia, queue } = useSelector((state: RootState) => state.room);
     const { toast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
-    const [queue, setQueue] = useState<string[]>([]);
+
+    const APP_ID = import.meta.env.VITE_AGORA_APP_ID;
 
     const handleAddToQueue = async () => {
         if (!searchQuery.trim()) return;
@@ -40,7 +44,6 @@ export default function MusicPage() {
                 const socket = getSocket();
 
                 if (socket) {
-                    // ALWAYS PLAY IMMEDIATELY per user request
                     const parseDuration = (str: string) => {
                         if (!str) return 0;
                         const p = str.split(':').map(Number);
@@ -48,20 +51,30 @@ export default function MusicPage() {
                         return p[0] * 3600 + p[1] * 60 + p[2];
                     };
 
-                    socket.emit('play_media', {
-                        roomId,
-                        media: {
-                            ...currentMedia,
-                            url: video.url,
-                            title: video.title,
-                            thumbnail: video.thumbnail,
-                            isPlaying: true,
-                            timestamp: 0,
-                            duration: parseDuration(video.duration),
-                            playedAt: Date.now()
-                        }
-                    });
-                    toast({ title: "Now Playing", description: video.title });
+                    const mediaItem = {
+                        url: video.url,
+                        title: video.title,
+                        thumbnail: video.thumbnail,
+                        duration: video.duration,
+                        addedBy: 'User', // Should be current user name if available
+                        isPlaying: false,
+                        timestamp: 0,
+                        playedAt: 0,
+                        // Duration in seconds for logic if needed
+                        durationSeconds: parseDuration(video.duration)
+                    };
+
+                    // Logic: If nothing playing, play immediately. Else add to queue.
+                    if (!currentMedia.url || !currentMedia.isPlaying) {
+                        socket.emit('play_media', {
+                            roomId,
+                            media: { ...mediaItem, isPlaying: true, playedAt: Date.now() }
+                        });
+                        toast({ title: "Now Playing", description: video.title });
+                    } else {
+                        socket.emit('add_to_queue', { roomId, item: mediaItem });
+                        toast({ title: "Added to Queue", description: video.title });
+                    }
                 }
                 setSearchQuery('');
             } else {
@@ -69,6 +82,15 @@ export default function MusicPage() {
             }
         } catch (error) {
             toast({ title: "Error", description: "Failed to search.", variant: "destructive" });
+        }
+    };
+
+    // ... create/join/leave thunks ...
+
+    const handleRemoveFromQueue = (index: number) => {
+        const socket = getSocket();
+        if (socket) {
+            socket.emit('remove_from_queue', { roomId, index });
         }
     };
 
@@ -125,7 +147,7 @@ export default function MusicPage() {
     // If no room is joined, show the Lobby
     if (!roomId) {
         return (
-            <div className="flex-1 flex flex-col h-full bg-background p-4 md:p-6 mt-16 md:mt-0">
+            <div className="flex-1 flex flex-col h-full bg-background p-4 md:p-6">
                 <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-border gap-3 sm:gap-0">
                     <div>
                         <h1 className="text-2xl font-bold text-foreground">Music Room</h1>
@@ -143,98 +165,9 @@ export default function MusicPage() {
 
                 {!roomId ? (
                     <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-                        {/* DEBUG OVERLAY - Hidden when not in room, actually this block is for !roomId so socket is null anyway usually */}
-                        {/* We only want debug overlay INSIDE the room or we need to handle it gracefully */}
                         <MusicLobby onJoinRoom={(id) => handleJoinRoom(id)} />
                     </div>
-                ) : (
-                    <div className="flex-1 flex flex-col lg:flex-row gap-4 md:gap-6 mt-4 md:mt-6 overflow-hidden relative">
-                        {/* DEBUG OVERLAY - Only show when in room */}
-                        <div className="absolute top-0 right-0 m-4 p-4 bg-black/80 text-green-400 font-mono text-xs rounded-lg z-50 pointer-events-none max-w-sm">
-                            <h3 className="font-bold underline mb-2">DEBUG STATUS</h3>
-                            <p>Room ID: {roomId}</p>
-                            <p>Socket ID: {getSocket()?.id || 'Disconnected'}</p>
-                            <p>Transport: {getSocket()?.io?.engine?.transport?.name || 'N/A'}</p>
-                            <p>Media Title: {currentMedia?.title}</p>
-                            <p>Is Playing: {String(currentMedia?.isPlaying)}</p>
-                            <p>Members: {members.length}</p>
-                            {!getSocket() && <p className="text-red-500 font-bold animate-pulse">SOCKET DISCONNECTED - ACTIONS FAILED</p>}
-                        </div>
-
-                        <div className="flex-1 flex flex-col gap-4">
-                            <Card className="flex-1">
-                                <CardHeader>
-                                    <CardTitle className="text-lg md:text-xl">Now Playing</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <YouTubePlayer />
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        <div className="w-full lg:w-96 flex flex-col gap-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                                        <Users className="h-5 w-5" />
-                                        Room Members ({members.length})
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <ScrollArea className="h-32 md:h-40">
-                                        <div className="space-y-2">
-                                            {members.map((member, index) => (
-                                                <div key={index} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                                        <Users className="h-4 w-4 text-primary" />
-                                                    </div>
-                                                    <span className="text-sm font-medium">User {index + 1}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </ScrollArea>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="flex-1">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                                        <ListMusic className="h-5 w-5" />
-                                        Queue
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-2">
-                                        <Input
-                                            placeholder="Search YouTube..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleAddToQueue()}
-                                            className="min-h-[44px]"
-                                        />
-                                        <Button onClick={handleAddToQueue} className="w-full min-h-[44px]">
-                                            <Plus className="mr-2 h-4 w-4" />
-                                            Add to Queue
-                                        </Button>
-                                        <ScrollArea className="h-48 md:h-64">
-                                            <div className="space-y-2">
-                                                {queue.map((item, index) => (
-                                                    <div key={index} className="flex items-center gap-2 p-2 rounded-md bg-muted/50 hover:bg-muted">
-                                                        <MusicIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                                        <span className="text-xs md:text-sm flex-1 truncate">{item}</span>
-                                                    </div>
-                                                ))}
-                                                {queue.length === 0 && (
-                                                    <p className="text-sm text-muted-foreground text-center py-4">No songs in queue</p>
-                                                )}
-                                            </div>
-                                        </ScrollArea>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </div>
-                )}
+                ) : null}
             </div>
         );
     }
@@ -242,35 +175,10 @@ export default function MusicPage() {
     // Room View
     return (
         <RoomManager>
-            <div className="h-full flex flex-col p-3 md:p-6 space-y-4 md:space-y-6 overflow-hidden bg-gradient-to-br from-background via-background to-primary/5 mt-16 md:mt-0">
+            <div className="h-full flex flex-col p-3 md:p-6 space-y-4 md:space-y-6 overflow-hidden bg-gradient-to-br from-background via-background to-primary/5">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 glass p-3 md:p-4 rounded-xl">
                     <div className="flex items-center gap-3">
-                        {/* DEBUG BUTTON */}
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                                const socket = getSocket();
-                                console.log("Debug Play Clicked. Socket:", socket?.id, "Room:", roomId);
-                                if (socket && roomId) {
-                                    socket.emit('play_media', {
-                                        roomId,
-                                        media: {
-                                            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Rick Roll for reliability
-                                            title: 'Debug Test Video',
-                                            thumbnail: '',
-                                            isPlaying: true,
-                                            timestamp: 0,
-                                            duration: 212,
-                                            playedAt: Date.now()
-                                        }
-                                    });
-                                }
-                            }}
-                        >
-                            DEBUG: FORCE PLAY
-                        </Button>
                         <div className="p-2 bg-primary/20 rounded-lg ring-2 ring-primary/10">
                             <MusicIcon className="h-5 w-5 text-primary" />
                         </div>
@@ -288,6 +196,7 @@ export default function MusicPage() {
                     </div>
 
                     <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto">
+                        {/* NEW: Voice Controls embedded here */}
                         <VoiceChat />
                         <div className="h-8 w-px bg-border/50 mx-1 hidden sm:block" />
                         <Button
@@ -304,11 +213,14 @@ export default function MusicPage() {
                 {/* Main Content Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 flex-1 min-h-0 overflow-hidden">
 
-                    {/* Left: Player */}
+                    {/* Left: Player + Stage */}
                     <div className="lg:col-span-2 flex flex-col overflow-hidden">
                         <Card className="overflow-hidden border-0 shadow-2xl bg-black/40 ring-1 ring-white/10 flex-1 relative group">
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 pointer-events-none" />
-                            <YouTubePlayer />
+                            {/* WRAPPED WITH STAGE */}
+                            <Stage>
+                                <YouTubePlayer />
+                            </Stage>
                         </Card>
                     </div>
 

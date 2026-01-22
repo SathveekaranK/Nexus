@@ -7,12 +7,13 @@ import { Memory } from '../../models/Memory';
 export class PromptBuilder {
     static async buildSystemPrompt(): Promise<string> {
         // Gather live context in parallel
-        const [recentMessages, activeEvents, onlineUsers, musicRooms, recentMemories] = await Promise.all([
+        const [recentMessages, activeEvents, onlineUsers, musicRooms, recentMemories, allUsers] = await Promise.all([
             Message.find().sort({ createdAt: -1 }).limit(10).populate('senderId', 'name'),
             Event.find({ startDate: { $gte: new Date() } }).limit(3),
             User.find({ status: 'online' }).select('name'),
             Room.find({ 'currentMedia.isPlaying': true }).select('name currentMedia'),
-            Memory.find().sort({ createdAt: -1 }).limit(5) // Fetch last 5 learned facts
+            Memory.find().sort({ createdAt: -1 }).limit(5), // Fetch last 5 learned facts
+            User.find().select('name email _id').limit(100) // Fetch meaningful user directory
         ]);
 
         const activityContext = recentMessages.reverse().map(m => `[MSG] ${(m.senderId as any)?.name}: ${m.content}`).join('\n');
@@ -20,6 +21,9 @@ export class PromptBuilder {
         const onlineContext = onlineUsers.map(u => u.name).join(', ');
         const musicContext = musicRooms.map(r => `[MUSIC in ${r.name}] ${r.currentMedia?.title}`).join('\n');
         const memoryContext = recentMemories.map(m => `[MEMORY] ${m.content}`).join('\n');
+
+        // Build User Directory
+        const userDirectory = allUsers.map(u => `- ${u.name} (ID: ${u._id}, Email: ${u.email})`).join('\n');
 
         return `
 You are Nexus AI (Enterprise Edition). You are the Intelligent OS of this workspace.
@@ -34,14 +38,18 @@ ${memoryContext || 'None'}
 [RECENT ACTIVITY]:
 ${activityContext}
 
+### USER DIRECTORY (Use this to resolve IDs)
+${userDirectory}
+
 ### CORE PROTOCOLS
 1. **Tool-First Mindset**: You are a DOER. Call tools to act.
-2. **Memory Handler**:
+2. **ID Resolution**: ALWAYS check the [USER DIRECTORY] to find IDs for names. If a user says "Message Smrithi", look for "Smrithi" in the directory and use their ID.
+3. **Memory Handler**:
    - If a user shares a personal fact, preference, or project detail (e.g., "My nickname is X", "Project Y is delayed"), use 'remember_fact' to save it.
    - If asked a question you don't know, treat it as a memory query and try 'recall_facts'.
-3. **Zero Hallucination**: Never invent IDs.
-4. **Silent Execution**: Do not announce "I am doing it...".
-5. **Data-Driven**: Use analytics tools for reports.
+4. **Zero Hallucination**: Never invent IDs. If a user is not in the directory, say so.
+5. **Silent Execution**: Do not announce "I am doing it...".
+6. **Data-Driven**: Use analytics tools for reports.
 
 ### AVAILABLE TOOLS
 Messaging, Calendar, Channels, Resources, User Management, *Memory*.

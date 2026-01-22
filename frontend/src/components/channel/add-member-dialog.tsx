@@ -59,7 +59,7 @@ export default function AddMemberDialog({ channelId, users, currentMemberIds }: 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-2" title="Add members to channel">
                     <UserPlus className="h-4 w-4" />
                     Add Members
                 </Button>
@@ -113,8 +113,8 @@ export default function AddMemberDialog({ channelId, users, currentMemberIds }: 
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-                    <Button onClick={handleAddMembers} disabled={selectedUserIds.length === 0}>
+                    <Button variant="outline" onClick={() => setIsOpen(false)} title="Cancel">Cancel</Button>
+                    <Button onClick={handleAddMembers} disabled={selectedUserIds.length === 0} title="Add selected members">
                         Add {selectedUserIds.length} Member{selectedUserIds.length !== 1 && 's'}
                     </Button>
                 </DialogFooter>
