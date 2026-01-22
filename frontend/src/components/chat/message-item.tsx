@@ -165,12 +165,45 @@ export default function MessageItem({
     );
   };
 
+  const buildSafeFileUrl = (rawPath: string): string | null => {
+    if (!rawPath) return null;
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    const absolute = rawPath.startsWith('http') ? rawPath : `${baseUrl}${rawPath}`;
+
+    try {
+      const url = new URL(absolute, window.location.origin);
+      if (url.protocol === 'http:' || url.protocol === 'https:') {
+        return url.toString();
+      }
+      return null;
+    } catch {
+      // Fallback: if parsing fails, do not use the value as a URL
+      return null;
+    }
+  };
+
   const renderContent = () => {
     // Logic for different message types
-    if (message.type === 'image') return <ImageAttachment src={message.content.startsWith('http') ? message.content : `${import.meta.env.VITE_API_URL}${message.content}`} alt="Attachment" />;
+    if (message.type === 'image') {
+      const safeUrl = buildSafeFileUrl(message.content);
+      if (!safeUrl) return <ImageAttachment src="" alt="Invalid attachment" />;
+      return <ImageAttachment src={safeUrl} alt="Attachment" />;
+    }
     if (message.type === 'file') {
       const fileName = message.content.split('/').pop() || 'File';
-      const fileUrl = message.content.startsWith('http') ? message.content : `${import.meta.env.VITE_API_URL}${message.content}`;
+      const fileUrl = buildSafeFileUrl(message.content);
+
+      if (!fileUrl) {
+        return (
+          <div className="flex items-center gap-2 p-3 bg-white/5 rounded-lg border border-white/10">
+            <div className="p-2 bg-primary/10 rounded-md text-primary"><LinkIcon className="h-4 w-4" /></div>
+            <div className="overflow-hidden">
+              <p className="text-sm font-medium truncate w-full">{fileName}</p>
+              <p className="text-[10px] text-muted-foreground uppercase">Invalid or unsafe link</p>
+            </div>
+          </div>
+        );
+      }
       return (
         <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors border border-white/10 group">
           <div className="p-2 bg-primary/10 rounded-md text-primary group-hover:scale-110 transition-transform"><LinkIcon className="h-4 w-4" /></div>

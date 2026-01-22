@@ -398,6 +398,18 @@ export default function ChatView({
     return unsubscribe;
   }, [dispatch]);
 
+  const [isRecording, setIsRecording] = useState(false);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [viewedUser, setViewedUser] = useState<User | null>(null);
+  const [isPinsDialogOpen, setIsPinsDialogOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
   const handleLeaveChannel = async () => {
     try {
       await dispatch(leaveChannel(activeChannel.id)).unwrap();
@@ -417,21 +429,6 @@ export default function ChatView({
     setViewedUser(user);
     setIsProfileDialogOpen(false);
   };
-
-  const handleViewProfile = (user: User) => {
-    setViewedUser(user);
-    setIsProfileDialogOpen(false);
-  };
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const [replyTo, setReplyTo] = useState<Message | null>(null);
-  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
-  const [viewedUser, setViewedUser] = useState<User | null>(null);
-  const [isPinsDialogOpen, setIsPinsDialogOpen] = useState(false);
 
   // Summarize State
   const [isSummarizeOpen, setIsSummarizeOpen] = useState(false);
@@ -465,7 +462,6 @@ export default function ChatView({
 
   // Smart Replies State
   const [smartReplies, setSmartReplies] = useState<string[]>([]);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     // Trigger smart reply fetch when messages change and last message is NOT from me
@@ -566,7 +562,7 @@ export default function ChatView({
       // Sound effect (only for others)
       if ((message.senderId?._id || message.senderId) !== currentUser.id) {
         const audio = new Audio("/notification.mp3");
-        audio.play().catch(() => {});
+        audio.play().catch(() => { });
       }
     });
 
@@ -988,7 +984,7 @@ export default function ChatView({
 
     const isExcel =
       file.type ===
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
       file.name.endsWith(".xlsx");
     const isImage = file.type.startsWith("image/");
     const isVideo = file.type.startsWith("video/");
@@ -1148,8 +1144,8 @@ export default function ChatView({
   // FILTERED MESSAGES 
   const filteredMessages = searchText
     ? messages.filter((m) =>
-        m.content?.toLowerCase().includes(searchText.toLowerCase())
-      )
+      m.content?.toLowerCase().includes(searchText.toLowerCase())
+    )
     : messages;
 
   return (

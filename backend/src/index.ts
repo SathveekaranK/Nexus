@@ -39,7 +39,18 @@ const server = http.createServer(app);
 // [Security] Helmet
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: false
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline might be needed for some dev tools, better to refine later
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            imgSrc: ["'self'", "data:", "https:", "http:"], // Allow external images
+            connectSrc: ["'self'", "https:", "http:", "ws:", "wss:"], // Allow websockets
+            objectSrc: ["'none'"],
+            frameAncestors: ["'self'"],
+            upgradeInsecureRequests: [],
+        },
+    },
 }));
 
 // [Performance] Compression

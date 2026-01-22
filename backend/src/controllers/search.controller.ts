@@ -5,8 +5,15 @@ import { Channel } from '../models/Channel';
 
 export const globalSearch = async (req: any, res: Response) => {
     try {
-        const query = req.query.q as string;
-        const type = req.query.type as string || 'all'; // all, messages, users, files
+        const rawQuery = req.query.q;
+        const rawType = req.query.type;
+
+        if (typeof rawQuery !== 'string') {
+            return res.status(400).json({ success: false, message: "Invalid query parameter" });
+        }
+
+        const query = rawQuery.trim();
+        const type = typeof rawType === 'string' ? rawType : 'all'; // all, messages, users, files
         const { id: userId } = req.user as any;
 
         if (!query || query.length < 2) {

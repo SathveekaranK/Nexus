@@ -86,6 +86,52 @@ export const updateUserProfile = async (req: Request, res: Response) => {
         const userId = req.user.userId;
         const { name, bio, status, avatar, customStatus, preferences } = req.body;
 
+        // Helper to ensure an object is safe to store as a literal value in MongoDB
+        const isSafePlainObject = (value: any): boolean => {
+            if (value === null || typeof value !== 'object') {
+                return false;
+            }
+            // Disallow objects with a prototype other than Object.prototype
+            if (Object.getPrototypeOf(value) !== Object.prototype) {
+                return false;
+            }
+            for (const key of Object.keys(value)) {
+                // Disallow MongoDB operator-style keys
+                if (key.startsWith('$')) {
+                    return false;
+                }
+                const v = (value as any)[key];
+                if (v && typeof v === 'object') {
+                    if (!isSafePlainObject(v)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        };
+
+        // Basic type validation for primitive profile fields
+        if (name !== undefined && typeof name !== 'string') {
+            return res.status(400).json({ success: false, message: 'Invalid value for name' });
+        }
+        if (bio !== undefined && typeof bio !== 'string') {
+            return res.status(400).json({ success: false, message: 'Invalid value for bio' });
+        }
+        if (status !== undefined && typeof status !== 'string') {
+            return res.status(400).json({ success: false, message: 'Invalid value for status' });
+        }
+        if (avatar !== undefined && typeof avatar !== 'string') {
+            return res.status(400).json({ success: false, message: 'Invalid value for avatar' });
+        }
+        if (customStatus !== undefined && typeof customStatus !== 'string') {
+            return res.status(400).json({ success: false, message: 'Invalid value for customStatus' });
+        }
+        if (preferences !== undefined) {
+            if (!isSafePlainObject(preferences)) {
+                return res.status(400).json({ success: false, message: 'Invalid value for preferences' });
+            }
+        }
+
         const updates: any = {};
         if (name !== undefined) updates.name = name;
         if (bio !== undefined) updates.bio = bio;
