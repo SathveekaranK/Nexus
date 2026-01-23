@@ -140,7 +140,7 @@ const ChatHeader = ({
               {channel?.pinnedMessageIds && channel.pinnedMessageIds.length > 0 && <Pin className="h-3.5 w-3.5 text-orange-400 fill-orange-400/20" />}
             </h2>
             <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-              {isDm ? 'Click to view profile' : `${channel.memberIds?.length || 0} members`}
+              {isDm ? 'Click to view profile' : `Click to view channel info • ${channel.memberIds?.length || 0} members`}
             </p>
           </div>
         </div>
@@ -1167,7 +1167,7 @@ export default function ChatView({
             const u = users.find(user => user.id === otherId);
             if (u) setViewedUser(u);
           } else {
-            setIsSettingsOpen(true);
+            setIsProfileDialogOpen(true);
           }
         }}
         onViewPins={() => setIsPinsDialogOpen(true)}
