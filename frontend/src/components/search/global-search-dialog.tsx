@@ -73,7 +73,8 @@ export default function GlobalSearchDialog() {
         <>
             <div
                 onClick={() => setOpen(true)}
-                className="relative w-full md:w-64 xl:w-96 text-sm text-muted-foreground bg-secondary/50 hover:bg-secondary/80 px-3 py-2 rounded-md cursor-pointer transition-colors flex items-center justify-between border border-transparent hover:border-border"
+                // Removed md:w-64 xl:w-96 to allow it to fit the sidebar container
+                className="relative w-full text-sm text-muted-foreground bg-secondary/50 hover:bg-secondary/80 px-3 py-2 rounded-md cursor-pointer transition-colors flex items-center justify-between border border-transparent hover:border-border"
                 title="Open global search (⌘K)"
             >
                 <div className="flex items-center gap-2">

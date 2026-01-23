@@ -18,6 +18,8 @@ COPY package*.json ./
 RUN npm install --only=production
 
 COPY --from=builder /app/dist ./dist
+# Note: In production, we don't copy the .env file into the image. 
+# Instead, we pass variables via docker-compose or EC2 environment settings.
 
 EXPOSE 3001
 

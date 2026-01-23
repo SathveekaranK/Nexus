@@ -10,23 +10,55 @@ You can push both folders to a single GitHub repository. Your structure should b
   frontend/
 ```
 
-## 2. Deploying the Backend (AWS Amplify)
-1. **Create a New App**: Select GitHub as your source.
-2. **Select the Backend Branch**: Choose the repository and backend folder.
-3. **Build Settings**: Configure Amplify to build the backend.
-   - **Build Command**: `cd backend && npm install && npm run build`
-   - **Start Command**: `node backend/dist/index.js`
-4. **Environment Variables**: Add the following in the Amplify console:
-   - `MONGODB_URI`: Your MongoDB connection string.
-   - `JWT_SECRET`: A strong secret key.
-   - `FRONTEND_URL`: The URL of your deployed frontend (e.g., `https://main.d1234.amplifyapp.com`).
-   - `PORT`: `3001` (or whatever you prefer).
+## 2. Deploying the Backend (Free Option: Render.com)
+If you want a **free** way to deploy your persistent Express/Socket.io backend, [Render](https://render.com) is the easiest alternative.
 
-## 3. Deploying the Frontend (AWS Amplify)
+1.  **Create a Render Account**: Connect it to your GitHub.
+2.  **New Web Service**:
+    *   Select your repository.
+    *   **Root Directory**: `backend`
+    *   **Runtime**: `Node` (or `Docker` if you prefer).
+    *   **Build Command**: `npm install && npm run build`
+    *   **Start Command**: `npm start`
+3.  **Plan**: Select **Free**.
+4.  **Environment Variables**: Add everything from your `backend/.env`.
+    *   `PORT`: `10000` (Render's default) or leave it; Render handles it.
+    *   `MONGODB_URI`: Your MongoDB Atlas string.
+    *   `JWT_SECRET`: Your production secret.
+    *   `FRONTEND_URL`: Your deployed Amplify URL.
+5.  **CORS**: Ensure your backend `allowedOrigins` includes your Render URL once it's assigned.
+
+*Note: Free instances on Render "spin down" after 15 minutes of inactivity. The first request after a break will take ~30 seconds to wake up.*
+
+---
+
+## 3. Alternative: AWS Free Tier (EC2)
+If you are still in your **AWS Free Tier (First 12 months)**:
+1.  Launch a **t2.micro** (or **t3.micro**) EC2 instance with Ubuntu.
+2.  Install Node.js and Docker.
+3.  Run your backend using Docker: `docker-compose up -d`.
+4.  This is 100% free for the first year and stays "always on" (unlike Render).
+
+---
+
+## 4. Deploying the Frontend (AWS Amplify)
 1. **Create a New App**: Select the same GitHub repository.
-2. **Build Settings**:
-   - **Base Directory**: `frontend/dist`
-   - **Build Command**: `cd frontend && npm install && npm run build`
+2. **Build Settings**: Configure Amplify with the following YAML:
+   ```yaml
+   version: 1
+   frontend:
+       phases:
+           build:
+               commands:
+                   - 'cd frontend && npm install && npm run build'
+       artifacts:
+           baseDirectory: frontend/dist
+           files:
+               - '**/*'
+       cache:
+           paths:
+               - frontend/node_modules/**/*
+   ```
 3. **Environment Variables**:
    - `VITE_API_URL`: The URL of your deployed backend (e.g., `https://backend.d5678.amplifyapp.com/api`).
    - Note: Vite requires variables to be prefixed with `VITE_`.
