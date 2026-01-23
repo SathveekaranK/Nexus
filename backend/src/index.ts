@@ -125,6 +125,16 @@ roomSocketHandler(io);
 chatSocketHandler(io);
 apiSocketHandler(io);
 
+// Global Error Handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('SERVER ERROR:', err);
+    res.status(err.status || 500).json({
+        success: false,
+        message: err.message || 'Internal Server Error',
+        error: process.env.NODE_ENV === 'development' ? err : undefined
+    });
+});
+
 // Init Scheduled Tasks
 import { DailyCleanup } from './services/DailyCleanup';
 DailyCleanup.init();
