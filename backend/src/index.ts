@@ -69,6 +69,8 @@ const allowedOrigins = [
     process.env.FRONTEND_URL
 ].filter(Boolean) as string[];
 
+console.log('CORS Allowed Origins:', allowedOrigins);
+
 const io = new Server(server, {
     cors: {
         origin: allowedOrigins,
@@ -197,4 +199,3 @@ connectDB().then(async () => {
         console.log(`Backend server running on port ${PORT}`);
     });
 });
-

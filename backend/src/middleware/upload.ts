@@ -53,6 +53,7 @@ if (useS3) {
         s3: s3,
         bucket: process.env.AWS_S3_BUCKET_NAME || 'nexusapp-storage',
         contentType: multerS3.AUTO_CONTENT_TYPE,
+        // acl: 'public-read', // Removed: Bucket has ACLs disabled (Bucket Owner Enforced)
         key: (req, file, cb) => {
             const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
             const uniqueName = `uploads/${Date.now()}-${uuidv4()}-${safeName}`;
