@@ -15,6 +15,7 @@ import { useDispatch } from 'react-redux';
 import { fetchChannels } from '@/services/channel/channelSlice';
 import { AppDispatch } from '@/store/store';
 import { useNavigate } from 'react-router-dom';
+import AddMemberDialog from './add-member-dialog';
 
 interface ChannelSettingsDialogProps {
     isOpen: boolean;
@@ -90,35 +91,47 @@ export default function ChannelSettingsDialog({ isOpen, onClose, channel, curren
                         <TabsTrigger value="danger">Danger Zone</TabsTrigger>
                     </TabsList>
 
-            <TabsContent value="overview" className="space-y-4 py-4">
-                <div className="space-y-2">
-                    <Label>Channel Name</Label>
-                    <Input
-                        value={name}
-                        onChange={e => setName(e.target.value)}
-                        className="bg-black/20 border-white/10"
-                        disabled={!isOwner}
-                        title="Channel name"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label>Topic / Description</Label>
-                    <Textarea
-                        value={topic}
-                        onChange={e => setTopic(e.target.value)}
-                        className="bg-black/20 border-white/10"
-                        disabled={!isOwner}
-                        title="Channel description"
-                    />
-                </div>
-                {isOwner && (
-                    <div className="flex justify-end">
-                        <Button onClick={handleUpdate} title="Save channel changes">Save Changes</Button>
-                    </div>
-                )}
-            </TabsContent>
+                    <TabsContent value="overview" className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Channel Name</Label>
+                            <Input
+                                value={name}
+                                onChange={e => setName(e.target.value)}
+                                className="bg-black/20 border-white/10"
+                                disabled={!isOwner}
+                                title="Channel name"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Topic / Description</Label>
+                            <Textarea
+                                value={topic}
+                                onChange={e => setTopic(e.target.value)}
+                                className="bg-black/20 border-white/10"
+                                disabled={!isOwner}
+                                title="Channel description"
+                            />
+                        </div>
+                        {isOwner && (
+                            <div className="flex justify-end">
+                                <Button onClick={handleUpdate} title="Save channel changes">Save Changes</Button>
+                            </div>
+                        )}
+                    </TabsContent>
 
                     <TabsContent value="members" className="py-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-sm font-semibold text-muted-foreground">
+                                {members.length} Members
+                            </h3>
+                            {isOwner && (
+                                <AddMemberDialog
+                                    channelId={channel.id}
+                                    users={allUsers}
+                                    currentMemberIds={channel.memberIds || []}
+                                />
+                            )}
+                        </div>
                         <ScrollArea className="h-[300px] pr-4">
                             <div className="space-y-2">
                                 {members.map(member => {
