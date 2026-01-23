@@ -998,15 +998,19 @@ export default function ChatView({
           // Type definition says { url: string } but runtime is different.
           const dataUri = (uploadedFile as any).data?.url || (uploadedFile as any).url || uploadedFile;
 
+          const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv');
+          const isPdf = file.name.endsWith('.pdf') || file.type === 'application/pdf';
+
           let mediaType: Message['type'] = 'file';
           if (isImage) mediaType = 'image';
           else if (isVideo) mediaType = 'video';
-          else if (file.type === 'application/pdf') mediaType = 'file'; // PDF treated as file
+          else if (isPdf || isExcel) mediaType = 'file';
 
           sendMessage(dataUri, mediaType);
-        } catch (error) {
+        } catch (error: any) {
           console.error("Upload error:", error);
-          toast({ title: 'Upload failed', variant: 'destructive' });
+          const errorMsg = error.response?.data?.message || error.message || 'Check S3/Local Storage permissions';
+          toast({ title: 'Upload failed', description: errorMsg, variant: 'destructive' });
         }
       };
       reader.readAsDataURL(file);
@@ -1017,9 +1021,10 @@ export default function ChatView({
         const uploadedFile = await api.uploadFile(file);
         const dataUri = (uploadedFile as any).data?.url || (uploadedFile as any).url || uploadedFile;
         sendMessage(dataUri, 'file');
-      } catch (err) {
+      } catch (err: any) {
         console.error("Upload error:", err);
-        toast({ title: 'Upload failed', variant: 'destructive' });
+        const errorMsg = err.response?.data?.message || err.message || 'Check S3/Local Storage permissions';
+        toast({ title: 'Upload failed', description: errorMsg, variant: 'destructive' });
       }
     } else {
       // Allow generic upload for other files
@@ -1031,8 +1036,10 @@ export default function ChatView({
         const uploadedFile = await api.uploadFile(file);
         const dataUri = (uploadedFile as any).data?.url || (uploadedFile as any).url || uploadedFile;
         sendMessage(dataUri, 'file');
-      } catch (e) {
-        toast({ title: 'Upload failed', variant: 'destructive' });
+      } catch (e: any) {
+        console.error("Upload error:", e);
+        const errorMsg = e.response?.data?.message || e.message || 'Check S3/Local Storage permissions';
+        toast({ title: 'Upload failed', description: errorMsg, variant: 'destructive' });
       }
     }
     if (fileInputRef.current) {

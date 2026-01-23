@@ -18,7 +18,13 @@ import {
   Reply,
   ShieldCheck,
   Link as LinkIcon,
-  Sparkles
+  Sparkles,
+  FileText,
+  FileSpreadsheet,
+  File,
+  PlayCircle,
+  Music,
+  Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
@@ -161,6 +167,40 @@ export default function MessageItem({
           loading="lazy"
           onError={() => setError(true)}
         />
+        <a
+          href={src}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+        >
+          <Button size="sm" variant="secondary" className="gap-2">
+            <Download className="h-4 w-4" /> View Full
+          </Button>
+        </a>
+      </div>
+    );
+  };
+
+  const VideoAttachment = ({ src }: { src: string }) => {
+    return (
+      <div className="relative group overflow-hidden rounded-xl mt-1 bg-black/20 border border-white/5">
+        <video
+          src={src}
+          controls
+          className="max-w-sm w-full rounded-xl"
+          poster="/video-placeholder.png"
+        />
+      </div>
+    );
+  };
+
+  const VoiceAttachment = ({ src }: { src: string }) => {
+    return (
+      <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 w-full max-w-[300px]">
+        <div className="p-2 bg-primary/20 rounded-full text-primary">
+          <Music className="h-5 w-5" />
+        </div>
+        <audio src={src} controls className="h-8 flex-1" />
       </div>
     );
   };
@@ -189,9 +229,21 @@ export default function MessageItem({
       if (!safeUrl) return <ImageAttachment src="" alt="Invalid attachment" />;
       return <ImageAttachment src={safeUrl} alt="Attachment" />;
     }
+    if (message.type === 'video') {
+      const safeUrl = buildSafeFileUrl(message.content);
+      if (!safeUrl) return <p className="text-xs text-muted-foreground italic">Invalid video link</p>;
+      return <VideoAttachment src={safeUrl} />;
+    }
+    if (message.type === 'voice') {
+      const safeUrl = buildSafeFileUrl(message.content);
+      if (!safeUrl) return <p className="text-xs text-muted-foreground italic">Invalid voice message</p>;
+      return <VoiceAttachment src={safeUrl} />;
+    }
     if (message.type === 'file') {
       const fileName = message.content.split('/').pop() || 'File';
       const fileUrl = buildSafeFileUrl(message.content);
+      const isPdf = fileName.toLowerCase().endsWith('.pdf');
+      const isExcel = fileName.toLowerCase().endsWith('.xlsx') || fileName.toLowerCase().endsWith('.xls') || fileName.toLowerCase().endsWith('.csv');
 
       if (!fileUrl) {
         return (
@@ -205,12 +257,15 @@ export default function MessageItem({
         );
       }
       return (
-        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors border border-white/10 group">
-          <div className="p-2 bg-primary/10 rounded-md text-primary group-hover:scale-110 transition-transform"><LinkIcon className="h-4 w-4" /></div>
-          <div className="overflow-hidden">
-            <p className="text-sm font-medium truncate w-full">{fileName}</p>
-            <p className="text-[10px] text-muted-foreground uppercase">Click to open</p>
+        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors border border-white/10 group min-w-[200px]">
+          <div className="p-2 bg-primary/10 rounded-md text-primary group-hover:scale-110 transition-transform">
+            {isPdf ? <FileText className="h-5 w-5" /> : isExcel ? <FileSpreadsheet className="h-5 w-5" /> : <File className="h-5 w-5" />}
           </div>
+          <div className="overflow-hidden flex-1">
+            <p className="text-sm font-medium truncate w-full">{fileName}</p>
+            <p className="text-[10px] text-muted-foreground uppercase">{isPdf ? 'PDF Document' : isExcel ? 'Spreadsheet' : 'Attachment'}</p>
+          </div>
+          <Download className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
         </a>
       );
     }
